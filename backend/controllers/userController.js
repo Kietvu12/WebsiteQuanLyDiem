@@ -35,16 +35,20 @@ class UserController {
         });
       }
 
-      // Tạo JWT token
+      // Tạo JWT token - sử dụng field names khớp với API response
+      console.log('🔍 JWT Debug - user.la_admin from DB:', user.la_admin, 'type:', typeof user.la_admin);
+      
       const token = jwt.sign(
         {
-          id: user.id_nguoi_dung,
-          username: user.ten_dang_nhap,
-          isAdmin: user.la_admin
+          id_nguoi_dung: user.id_nguoi_dung,
+          ten_dang_nhap: user.ten_dang_nhap,
+          la_admin: user.la_admin
         },
         JWT_SECRET,
         { expiresIn: '24h' }
       );
+      
+      console.log('🔍 JWT Debug - JWT payload created with la_admin:', user.la_admin);
 
       // Trả về thông tin người dùng (không bao gồm mật khẩu)
       const { mat_khau_hash, ...userInfo } = user;
@@ -69,6 +73,16 @@ class UserController {
   // Lấy tất cả người dùng (chỉ admin)
   static async getAllUsers(req, res) {
     try {
+      // Kiểm tra quyền admin
+      const isAdmin = req.user.la_admin === 1 || req.user.la_admin === true;
+      
+      if (!isAdmin) {
+        return res.status(403).json({
+          success: false,
+          message: 'Chỉ admin mới có quyền xem danh sách tất cả người dùng'
+        });
+      }
+      
       const users = await User.getAll();
       res.json({
         success: true,
@@ -88,6 +102,19 @@ class UserController {
   static async getUserById(req, res) {
     try {
       const { id } = req.params;
+      
+      // Kiểm tra quyền: chỉ admin hoặc chính người dùng đó mới được xem
+      const userId = parseInt(id);
+      const isOwnUser = req.user.id_nguoi_dung === userId;
+      const isAdmin = req.user.la_admin === 1 || req.user.la_admin === true;
+      
+      if (!isOwnUser && !isAdmin) {
+        return res.status(403).json({
+          success: false,
+          message: 'Không có quyền xem thông tin người dùng khác'
+        });
+      }
+      
       const user = await User.getById(id);
 
       if (!user) {
@@ -114,8 +141,12 @@ class UserController {
   // Lấy thông tin cá nhân của người dùng hiện tại
   static async getProfile(req, res) {
     try {
-      const userId = req.user.id;
+      const userId = req.user.id_nguoi_dung;
+      console.log('getProfile - userId from JWT:', userId);
+      console.log('getProfile - req.user:', req.user);
+      
       const user = await User.getById(userId);
+      console.log('getProfile - user from DB:', user);
 
       if (!user) {
         return res.status(404).json({
@@ -124,10 +155,19 @@ class UserController {
         });
       }
 
+      // Thêm headers để tránh cache
+      res.set({
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      });
+
       res.json({
         success: true,
         message: 'Lấy thông tin cá nhân thành công',
-        data: user
+        data: {
+          user: user
+        }
       });
     } catch (error) {
       console.error('Lỗi lấy thông tin cá nhân:', error);
@@ -141,6 +181,16 @@ class UserController {
   // Tạo người dùng mới (chỉ admin)
   static async createUser(req, res) {
     try {
+      // Kiểm tra quyền admin
+      const isAdmin = req.user.la_admin === 1 || req.user.la_admin === true;
+      
+      if (!isAdmin) {
+        return res.status(403).json({
+          success: false,
+          message: 'Chỉ admin mới có quyền tạo người dùng mới'
+        });
+      }
+      
       const { ten_dang_nhap, mat_khau, email, ho_ten, so_dien_thoai, dia_chi } = req.body;
 
       // Kiểm tra dữ liệu đầu vào
@@ -201,28 +251,74 @@ class UserController {
   static async updateUser(req, res) {
     try {
       const { id } = req.params;
-      const { ho_ten, so_dien_thoai, dia_chi } = req.body;
+      const { ho_ten, so_dien_thoai, dia_chi, so_du, diem } = req.body;
 
       // Kiểm tra quyền: chỉ admin hoặc chính người dùng đó mới được cập nhật
-      if (req.user.id !== parseInt(id) && !req.user.isAdmin) {
+      const userId = parseInt(id);
+      const isOwnUser = req.user.id_nguoi_dung === userId;
+      const isAdmin = req.user.la_admin === 1 || req.user.la_admin === true;
+      
+      if (!isOwnUser && !isAdmin) {
         return res.status(403).json({
           success: false,
           message: 'Không có quyền cập nhật thông tin người dùng này'
         });
       }
 
-      // Cập nhật thông tin
-      const success = await User.update(id, {
-        ho_ten,
-        so_dien_thoai,
-        dia_chi
-      });
-
-      if (!success) {
-        return res.status(404).json({
+      // Nếu cập nhật số dư hoặc điểm, chỉ admin mới được làm
+      if ((so_du !== undefined || diem !== undefined) && !isAdmin) {
+        return res.status(403).json({
           success: false,
-          message: 'Không tìm thấy người dùng để cập nhật'
+          message: 'Chỉ admin mới có quyền cập nhật số dư và điểm'
         });
+      }
+
+      // Cập nhật thông tin cơ bản
+      if (ho_ten || so_dien_thoai || dia_chi) {
+        const basicData = {};
+        if (ho_ten !== undefined) basicData.ho_ten = ho_ten;
+        if (so_dien_thoai !== undefined) basicData.so_dien_thoai = so_dien_thoai;
+        if (dia_chi !== undefined) basicData.dia_chi = dia_chi;
+
+        const success = await User.update(id, basicData);
+        if (!success) {
+          return res.status(404).json({
+            success: false,
+            message: 'Không tìm thấy người dùng để cập nhật'
+          });
+        }
+      }
+
+      // Cập nhật số dư và điểm (chỉ admin)
+      if (req.user.la_admin && (so_du !== undefined || diem !== undefined)) {
+        if (so_du !== undefined && diem !== undefined) {
+          // Cập nhật cả số dư và điểm
+          const success = await User.updateBalanceAndPoints(id, so_du, diem);
+          if (!success) {
+            return res.status(500).json({
+              success: false,
+              message: 'Lỗi khi cập nhật số dư và điểm'
+            });
+          }
+        } else if (so_du !== undefined) {
+          // Chỉ cập nhật số dư
+          const success = await User.updateBalance(id, so_du);
+          if (!success) {
+            return res.status(500).json({
+              success: false,
+              message: 'Lỗi khi cập nhật số dư'
+            });
+          }
+        } else if (diem !== undefined) {
+          // Chỉ cập nhật điểm
+          const success = await User.updatePoints(id, diem);
+          if (!success) {
+            return res.status(500).json({
+              success: false,
+              message: 'Lỗi khi cập nhật điểm'
+            });
+          }
+        }
       }
 
       res.json({
@@ -245,7 +341,10 @@ class UserController {
       const { mat_khau_cu, mat_khau_moi } = req.body;
 
       // Kiểm tra quyền: chỉ chính người dùng đó mới được đổi mật khẩu
-      if (req.user.id !== parseInt(id)) {
+      const userId = parseInt(id);
+      const isOwnUser = req.user.id_nguoi_dung === userId;
+      
+      if (!isOwnUser) {
         return res.status(403).json({
           success: false,
           message: 'Không có quyền đổi mật khẩu của người dùng khác'
@@ -303,7 +402,9 @@ class UserController {
       const { id } = req.params;
 
       // Kiểm tra quyền admin
-      if (!req.user.isAdmin) {
+      const isAdmin = req.user.la_admin === 1 || req.user.la_admin === true;
+      
+      if (!isAdmin) {
         return res.status(403).json({
           success: false,
           message: 'Chỉ admin mới có quyền xóa người dùng'
@@ -311,7 +412,7 @@ class UserController {
       }
 
       // Không cho phép xóa chính mình
-      if (req.user.id === parseInt(id)) {
+      if (req.user.id_nguoi_dung === parseInt(id)) {
         return res.status(400).json({
           success: false,
           message: 'Không thể xóa chính mình'
@@ -346,7 +447,11 @@ class UserController {
       const { id } = req.params;
 
       // Kiểm tra quyền: chỉ admin hoặc chính người dùng đó mới được xem
-      if (req.user.id !== parseInt(id) && !req.user.isAdmin) {
+      const userId = parseInt(id);
+      const isOwnUser = req.user.id_nguoi_dung === userId;
+      const isAdmin = req.user.la_admin === 1 || req.user.la_admin === true;
+      
+      if (!isOwnUser && !isAdmin) {
         return res.status(403).json({
           success: false,
           message: 'Không có quyền xem nhóm của người dùng khác'
@@ -372,22 +477,62 @@ class UserController {
   // Lấy lịch sử giao dịch của người dùng
   static async getUserTransactions(req, res) {
     try {
+      console.log('🚀 === getUserTransactions CALLED ===');
+      console.log('🚀 Request method:', req.method);
+      console.log('🚀 Request URL:', req.url);
+      console.log('🚀 Request params:', req.params);
+      console.log('🚀 Request user:', req.user);
+      
       const { id } = req.params;
+      
+      console.log('=== getUserTransactions Debug ===');
+      console.log('Request user:', req.user);
+      console.log('URL param id:', id);
+      console.log('req.user.id_nguoi_dung:', req.user.id_nguoi_dung, 'type:', typeof req.user.id_nguoi_dung);
+      console.log('req.user.la_admin:', req.user.la_admin, 'type:', typeof req.user.la_admin);
+      console.log('parseInt(id):', parseInt(id), 'type:', typeof parseInt(id));
 
       // Kiểm tra quyền: chỉ admin hoặc chính người dùng đó mới được xem
-      if (req.user.id !== parseInt(id) && !req.user.isAdmin) {
+      const userId = parseInt(id);
+      const isOwnUser = req.user.id_nguoi_dung === userId;
+      const isAdmin = req.user.la_admin === 1 || req.user.la_admin === true;
+      console.log('userId:', userId);
+      console.log('req.user.id_nguoi_dung:', req.user.id_nguoi_dung);   
+      console.log('isOwnUser:', isOwnUser);
+      console.log('isAdmin:', isAdmin);
+      console.log('Final check:', !isOwnUser && !isAdmin);
+      console.log('🔍 Backend Debug - req.user.la_admin:', req.user.la_admin, 'type:', typeof req.user.la_admin);
+      console.log('🔍 Backend Debug - req.user.la_admin === 1:', req.user.la_admin === 1);
+      console.log('🔍 Backend Debug - req.user.la_admin === true:', req.user.la_admin === true);
+      console.log('🔍 Backend Debug - req.user.la_admin == 1:', req.user.la_admin == 1);
+      console.log('🔍 Backend Debug - req.user.la_admin == true:', req.user.la_admin == true);
+      console.log('🔍 Backend Debug - !!req.user.la_admin:', !!req.user.la_admin);
+      
+      if (!isOwnUser && !isAdmin) {
+        console.log('❌ Access denied - not own user and not admin');
+        console.log('❌ Final check result:', !isOwnUser && !isAdmin);
         return res.status(403).json({
           success: false,
           message: 'Không có quyền xem giao dịch của người dùng khác'
         });
       }
+      
+      console.log('✅ Access granted');
+      console.log('✅ Proceeding to fetch transactions...');
 
+      console.log('✅ Fetching transactions for user ID:', id);
       const transactions = await Transaction.getBySender(id);
+      console.log('✅ Sender transactions count:', transactions.length);
+      
       const receivedTransactions = await Transaction.getByReceiver(id);
+      console.log('✅ Receiver transactions count:', receivedTransactions.length);
 
       // Gộp và sắp xếp theo thời gian
       const allTransactions = [...transactions, ...receivedTransactions]
         .sort((a, b) => new Date(b.ngay_tao) - new Date(a.ngay_tao));
+      
+      console.log('✅ Total transactions:', allTransactions.length);
+      console.log('✅ Sending response...');
 
       res.json({
         success: true,
@@ -395,7 +540,8 @@ class UserController {
         data: allTransactions
       });
     } catch (error) {
-      console.error('Lỗi lấy lịch sử giao dịch:', error);
+      console.error('❌ Lỗi lấy lịch sử giao dịch:', error);
+      console.error('❌ Error stack:', error.stack);
       res.status(500).json({
         success: false,
         message: 'Lỗi server khi lấy lịch sử giao dịch'
@@ -409,7 +555,11 @@ class UserController {
       const { id } = req.params;
 
       // Kiểm tra quyền: chỉ admin hoặc chính người dùng đó mới được xem
-      if (req.user.id !== parseInt(id) && !req.user.isAdmin) {
+      const userId = parseInt(id);
+      const isOwnUser = req.user.id_nguoi_dung === userId;
+      const isAdmin = req.user.la_admin === 1 || req.user.la_admin === true;
+      
+      if (!isOwnUser && !isAdmin) {
         return res.status(403).json({
           success: false,
           message: 'Không có quyền xem lịch xe của người dùng khác'

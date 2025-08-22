@@ -1,4 +1,6 @@
-import React, { useState } from 'react'
+import React from 'react'
+import { Routes, Route, Navigate } from 'react-router-dom'
+import ProtectedRoute from '../../components/ProtectedRoute'
 import Sidebar from './Sidebar'
 import Header from './Header'
 import AddNewTransaction from '../AddNewTransaction/AddNewTransaction'
@@ -9,32 +11,45 @@ import UsersPage from '../../page/UsersPage/UsersPage'
 import ReportsPage from '../../page/ReportsPage/ReportsPage'
 
 const Layout = () => {
-  const [activeTab, setActiveTab] = useState('transactions')
-
-  const renderContent = () => {
-    switch (activeTab) {
-      case 'transactions':
-        return <HomePage />
-      case 'vehicle-schedule':
-        return <VehicleSchedulePage />
-      case 'groups':
-        return <GroupsPage />
-      case 'users':
-        return <UsersPage />
-      case 'reports':
-        return <ReportsPage />
-      default:
-        return <HomePage />
-    }
-  }
-
   return (
     <div className="min-h-screen bg-gray-25">
-      <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
+      <Sidebar />
       <Header />
       <div className="ml-72 pt-16 min-h-screen">
         <div className="p-8">
-          {renderContent()}
+          <Routes>
+            {/* Các trang cơ bản - tất cả user đều truy cập được */}
+            <Route path="/" element={
+              <ProtectedRoute>
+                <HomePage />
+              </ProtectedRoute>
+            } />
+            <Route path="/vehicle-schedule" element={
+              <ProtectedRoute>
+                <VehicleSchedulePage />
+              </ProtectedRoute>
+            } />
+            
+            {/* Các trang chỉ admin mới truy cập được */}
+            <Route path="/groups" element={
+              <ProtectedRoute requireAdmin={true}>
+                <GroupsPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/users" element={
+              <ProtectedRoute requireAdmin={true}>
+                <UsersPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/reports" element={
+              <ProtectedRoute requireAdmin={true}>
+                <ReportsPage />
+              </ProtectedRoute>
+            } />
+            
+            {/* Redirect về trang chủ nếu truy cập trang không được phép */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
         </div>
       </div>
       <AddNewTransaction />

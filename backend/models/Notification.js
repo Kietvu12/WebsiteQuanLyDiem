@@ -5,10 +5,15 @@ class Notification {
   static async getAll() {
     try {
       const [rows] = await pool.execute(
-        `SELECT tb.*, nd.ho_ten as ten_nguoi_dung, gd.id_giao_dich
+        `SELECT tb.id_thong_bao, tb.id_nguoi_dung, tb.id_giao_dich, tb.noi_dung, tb.da_doc, tb.ngay_tao,
+                nd.ho_ten as ten_nguoi_dung,
+                gd.id_loai_giao_dich, gd.so_tien, gd.diem, gd.trang_thai,
+                ng.ho_ten as ten_nguoi_gui, nn.ho_ten as ten_nguoi_nhan
          FROM thong_bao tb
          INNER JOIN nguoi_dung nd ON tb.id_nguoi_dung = nd.id_nguoi_dung
          LEFT JOIN giao_dich gd ON tb.id_giao_dich = gd.id_giao_dich
+         LEFT JOIN nguoi_dung ng ON gd.id_nguoi_gui = ng.id_nguoi_dung
+         LEFT JOIN nguoi_dung nn ON gd.id_nguoi_nhan = nn.id_nguoi_dung
          ORDER BY tb.ngay_tao DESC`
       );
       return rows;
@@ -21,10 +26,15 @@ class Notification {
   static async getById(id) {
     try {
       const [rows] = await pool.execute(
-        `SELECT tb.*, nd.ho_ten as ten_nguoi_dung, gd.id_giao_dich
+        `SELECT tb.id_thong_bao, tb.id_nguoi_dung, tb.id_giao_dich, tb.noi_dung, tb.da_doc, tb.ngay_tao,
+                nd.ho_ten as ten_nguoi_dung,
+                gd.id_loai_giao_dich, gd.so_tien, gd.diem, gd.trang_thai,
+                ng.ho_ten as ten_nguoi_gui, nn.ho_ten as ten_nguoi_nhan
          FROM thong_bao tb
          INNER JOIN nguoi_dung nd ON tb.id_nguoi_dung = nd.id_nguoi_dung
          LEFT JOIN giao_dich gd ON tb.id_giao_dich = gd.id_giao_dich
+         LEFT JOIN nguoi_dung ng ON gd.id_nguoi_gui = ng.id_nguoi_dung
+         LEFT JOIN nguoi_dung nn ON gd.id_nguoi_nhan = nn.id_nguoi_dung
          WHERE tb.id_thong_bao = ?`,
         [id]
       );
@@ -38,10 +48,22 @@ class Notification {
   static async getByUser(userId) {
     try {
       const [rows] = await pool.execute(
-        `SELECT tb.*, nd.ho_ten as ten_nguoi_dung, gd.id_giao_dich
+        `SELECT tb.id_thong_bao, tb.id_nguoi_dung, tb.id_giao_dich, tb.noi_dung, tb.da_doc, tb.ngay_tao,
+                nd.ho_ten as ten_nguoi_dung,
+                gd.id_loai_giao_dich, gd.so_tien, gd.diem, gd.trang_thai, gd.id_lich_xe,
+                ng.ho_ten as ten_nguoi_gui, nn.ho_ten as ten_nguoi_nhan,
+                lx.id_lich_xe, lxe.ten_loai as ten_loai_xe, lxe.so_cho, 
+                lt.ten_loai as ten_loai_tuyen, lt.la_khu_hoi,
+                lx.thoi_gian_bat_dau_don, lx.thoi_gian_ket_thuc_don,
+                lx.thoi_gian_bat_dau_tra, lx.thoi_gian_ket_thuc_tra
          FROM thong_bao tb
          INNER JOIN nguoi_dung nd ON tb.id_nguoi_dung = nd.id_nguoi_dung
          LEFT JOIN giao_dich gd ON tb.id_giao_dich = gd.id_giao_dich
+         LEFT JOIN nguoi_dung ng ON gd.id_nguoi_gui = ng.id_nguoi_dung
+         LEFT JOIN nguoi_dung nn ON gd.id_nguoi_nhan = nn.id_nguoi_dung
+         LEFT JOIN lich_xe lx ON gd.id_lich_xe = lx.id_lich_xe
+         LEFT JOIN loai_xe lxe ON lx.id_loai_xe = lxe.id_loai_xe
+         LEFT JOIN loai_tuyen lt ON lx.id_loai_tuyen = lt.id_loai_tuyen
          WHERE tb.id_nguoi_dung = ?
          ORDER BY tb.ngay_tao DESC`,
         [userId]
@@ -56,10 +78,15 @@ class Notification {
   static async getUnreadByUser(userId) {
     try {
       const [rows] = await pool.execute(
-        `SELECT tb.*, nd.ho_ten as ten_nguoi_dung, gd.id_giao_dich
+        `SELECT tb.id_thong_bao, tb.id_nguoi_dung, tb.id_giao_dich, tb.noi_dung, tb.da_doc, tb.ngay_tao,
+                nd.ho_ten as ten_nguoi_dung,
+                gd.id_loai_giao_dich, gd.so_tien, gd.diem, gd.trang_thai,
+                ng.ho_ten as ten_nguoi_gui, nn.ho_ten as ten_nguoi_nhan
          FROM thong_bao tb
          INNER JOIN nguoi_dung nd ON tb.id_nguoi_dung = nd.id_nguoi_dung
          LEFT JOIN giao_dich gd ON tb.id_giao_dich = gd.id_giao_dich
+         LEFT JOIN nguoi_dung ng ON gd.id_nguoi_gui = ng.id_nguoi_dung
+         LEFT JOIN nguoi_dung nn ON gd.id_nguoi_nhan = nn.id_nguoi_dung
          WHERE tb.id_nguoi_dung = ? AND tb.da_doc = FALSE
          ORDER BY tb.ngay_tao DESC`,
         [userId]
@@ -153,10 +180,15 @@ class Notification {
   static async getByTransaction(transactionId) {
     try {
       const [rows] = await pool.execute(
-        `SELECT tb.*, nd.ho_ten as ten_nguoi_dung, gd.id_giao_dich
+        `SELECT tb.id_thong_bao, tb.id_nguoi_dung, tb.id_giao_dich, tb.noi_dung, tb.da_doc, tb.ngay_tao,
+                nd.ho_ten as ten_nguoi_dung,
+                gd.id_loai_giao_dich, gd.so_tien, gd.diem, gd.trang_thai,
+                ng.ho_ten as ten_nguoi_gui, nn.ho_ten as ten_nguoi_nhan
          FROM thong_bao tb
          INNER JOIN nguoi_dung nd ON tb.id_nguoi_dung = nd.id_nguoi_dung
          LEFT JOIN giao_dich gd ON tb.id_giao_dich = gd.id_giao_dich
+         LEFT JOIN nguoi_dung ng ON gd.id_nguoi_gui = ng.id_nguoi_dung
+         LEFT JOIN nguoi_dung nn ON gd.id_nguoi_nhan = nn.id_nguoi_dung
          WHERE tb.id_giao_dich = ?
          ORDER BY tb.ngay_tao DESC`,
         [transactionId]
@@ -171,10 +203,15 @@ class Notification {
   static async getByDate(date) {
     try {
       const [rows] = await pool.execute(
-        `SELECT tb.*, nd.ho_ten as ten_nguoi_dung, gd.id_giao_dich
+        `SELECT tb.id_thong_bao, tb.id_nguoi_dung, tb.id_giao_dich, tb.noi_dung, tb.da_doc, tb.ngay_tao,
+                nd.ho_ten as ten_nguoi_dung,
+                gd.id_loai_giao_dich, gd.so_tien, gd.diem, gd.trang_thai,
+                ng.ho_ten as ten_nguoi_gui, nn.ho_ten as ten_nguoi_nhan
          FROM thong_bao tb
          INNER JOIN nguoi_dung nd ON tb.id_nguoi_dung = nd.id_nguoi_dung
          LEFT JOIN giao_dich gd ON tb.id_giao_dich = gd.id_giao_dich
+         LEFT JOIN nguoi_dung ng ON gd.id_nguoi_gui = ng.id_nguoi_dung
+         LEFT JOIN nguoi_dung nn ON gd.id_nguoi_nhan = nn.id_nguoi_dung
          WHERE DATE(tb.ngay_tao) = ?
          ORDER BY tb.ngay_tao DESC`,
         [date]

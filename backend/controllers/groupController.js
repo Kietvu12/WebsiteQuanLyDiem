@@ -52,7 +52,7 @@ class GroupController {
       const { ten_nhom, mo_ta } = req.body;
 
       // Kiểm tra quyền admin
-      if (!req.user.isAdmin) {
+      if (!req.user.la_admin) {
         return res.status(403).json({
           success: false,
           message: 'Chỉ admin mới có quyền tạo nhóm'
@@ -94,7 +94,7 @@ class GroupController {
       const { ten_nhom, mo_ta } = req.body;
 
       // Kiểm tra quyền admin
-      if (!req.user.isAdmin) {
+      if (!req.user.la_admin) {
         return res.status(403).json({
           success: false,
           message: 'Chỉ admin mới có quyền cập nhật nhóm'
@@ -133,7 +133,7 @@ class GroupController {
       const { id } = req.params;
 
       // Kiểm tra quyền admin
-      if (!req.user.isAdmin) {
+      if (!req.user.la_admin) {
         return res.status(403).json({
           success: false,
           message: 'Chỉ admin mới có quyền xóa nhóm'
@@ -168,8 +168,24 @@ class GroupController {
       const { id } = req.params;
 
       // Kiểm tra người dùng có trong nhóm không
-      const isMember = await Group.isMember(id, req.user.id);
-      if (!isMember && !req.user.isAdmin) {
+      console.log('Checking if user is member of group...')
+      console.log('User is admin:', req.user.la_admin)
+      
+      let isMember = false
+      if (req.user.la_admin === 1 || req.user.la_admin === true) {
+        // Admin có thể xem thành viên của mọi nhóm
+        console.log('User is admin, bypassing group membership check')
+        isMember = true
+      } else {
+        // User thường phải kiểm tra thành viên nhóm
+        console.log('User is not admin, checking group membership...')
+        const isMemberResult = await Group.isMember(id, req.user.id_nguoi_dung);
+        isMember = isMemberResult
+      }
+      
+      console.log('Group membership check result:', isMember)
+      
+      if (!isMember) {
         return res.status(403).json({
           success: false,
           message: 'Bạn không phải thành viên của nhóm này'
@@ -198,7 +214,7 @@ class GroupController {
       const { groupId, userId } = req.body;
 
       // Kiểm tra quyền admin
-      if (!req.user.isAdmin) {
+      if (!req.user.la_admin) {
         return res.status(403).json({
           success: false,
           message: 'Chỉ admin mới có quyền thêm thành viên vào nhóm'
@@ -254,8 +270,8 @@ class GroupController {
       const { groupId, userId } = req.body;
 
       // Kiểm tra quyền admin
-      if (!req.user.isAdmin) {
-        return res.status(403).json({
+      if (!req.user.la_admin) {
+        return res.status(400).json({
           success: false,
           message: 'Chỉ admin mới có quyền xóa thành viên khỏi nhóm'
         });
@@ -299,8 +315,24 @@ class GroupController {
       const { id } = req.params;
 
       // Kiểm tra người dùng có trong nhóm không
-      const isMember = await Group.isMember(id, req.user.id);
-      if (!isMember && !req.user.isAdmin) {
+      console.log('Checking if user is member of group...')
+      console.log('User is admin:', req.user.la_admin)
+      
+      let isMember = false
+      if (req.user.la_admin === 1 || req.user.la_admin === true) {
+        // Admin có thể xem số lượng thành viên của mọi nhóm
+        console.log('User is admin, bypassing group membership check')
+        isMember = true
+      } else {
+        // User thường phải kiểm tra thành viên nhóm
+        console.log('User is not admin, checking group membership...')
+        const isMemberResult = await Group.isMember(id, req.user.id_nguoi_dung);
+        isMember = isMemberResult
+      }
+      
+      console.log('Group membership check result:', isMember)
+      
+      if (!isMember) {
         return res.status(403).json({
           success: false,
           message: 'Bạn không phải thành viên của nhóm này'
@@ -329,8 +361,24 @@ class GroupController {
       const { id } = req.params;
 
       // Kiểm tra người dùng có trong nhóm không
-      const isMember = await Group.isMember(id, req.user.id);
-      if (!isMember && !req.user.isAdmin) {
+      console.log('Checking if user is member of group...')
+      console.log('User is admin:', req.user.la_admin)
+      
+      let isMember = false
+      if (req.user.la_admin === 1 || req.user.la_admin === true) {
+        // Admin có thể xem giao dịch của mọi nhóm
+        console.log('User is admin, bypassing group membership check')
+        isMember = true
+      } else {
+        // User thường phải kiểm tra thành viên nhóm
+        console.log('User is not admin, checking group membership...')
+        const isMemberResult = await Group.isMember(id, req.user.id_nguoi_dung);
+        isMember = isMemberResult
+      }
+      
+      console.log('Group membership check result:', isMember)
+      
+      if (!isMember) {
         return res.status(403).json({
           success: false,
           message: 'Bạn không phải thành viên của nhóm này'
@@ -359,8 +407,24 @@ class GroupController {
       const { id } = req.params;
 
       // Kiểm tra người dùng có trong nhóm không
-      const isMember = await Group.isMember(id, req.user.id);
-      if (!isMember && !req.user.isAdmin) {
+      console.log('Checking if user is member of group...')
+      console.log('User is admin:', req.user.la_admin)
+      
+      let isMember = false
+      if (req.user.la_admin === 1 || req.user.la_admin === true) {
+        // Admin có thể xem lịch xe của mọi nhóm
+        console.log('User is admin, bypassing group membership check')
+        isMember = true
+      } else {
+        // User thường phải kiểm tra thành viên nhóm
+        console.log('User is not admin, checking group membership...')
+        const isMemberResult = await Group.isMember(id, req.user.id_nguoi_dung);
+        isMember = isMemberResult
+      }
+      
+      console.log('Group membership check result:', isMember)
+      
+      if (!isMember) {
         return res.status(403).json({
           success: false,
           message: 'Bạn không phải thành viên của nhóm này'

@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { useAuth } from '../../contexts/AuthContext'
 import { 
   SearchOutlined,
   UserOutlined,
@@ -10,25 +11,28 @@ import {
   CloseOutlined,
   MailOutlined,
   PhoneOutlined,
-  HomeOutlined
+  HomeOutlined,
+  ExclamationCircleOutlined
 } from '@ant-design/icons'
 import Notification from '../Notification/Notification'
 
 const Header = () => {
+  const { user, logout, updateProfile, changePassword } = useAuth()
   const [isProfileOpen, setIsProfileOpen] = useState(false)
   const [activeModal, setActiveModal] = useState(null)
   const [profileData, setProfileData] = useState({
-    fullName: 'Anne Douglas',
-    email: 'anne.douglas@example.com',
-    phone: '0123456789',
-    address: 'Hà Nội, Việt Nam',
-    avatar: null
+    ho_ten: user?.ho_ten || '',
+    so_dien_thoai: user?.so_dien_thoai || '',
+    dia_chi: user?.dia_chi || ''
   })
   const [passwordData, setPasswordData] = useState({
-    currentPassword: '',
-    newPassword: '',
-    confirmPassword: ''
+    mat_khau_cu: '',
+    mat_khau_moi: '',
+    xac_nhan_mat_khau: ''
   })
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [profileError, setProfileError] = useState('')
+  const [passwordError, setPasswordError] = useState('')
 
   const handleProfileClick = () => {
     setIsProfileOpen(!isProfileOpen)
@@ -37,40 +41,81 @@ const Header = () => {
   const handleMenuClick = (action) => {
     setActiveModal(action)
     setIsProfileOpen(false)
+    
+    // Reset form data khi mở modal
+    if (action === 'edit-profile') {
+      setProfileData({
+        ho_ten: user?.ho_ten || '',
+        so_dien_thoai: user?.so_dien_thoai || '',
+        dia_chi: user?.dia_chi || ''
+      })
+      setProfileError('')
+    } else if (action === 'change-password') {
+      setPasswordData({
+        mat_khau_cu: '',
+        mat_khau_moi: '',
+        xac_nhan_mat_khau: ''
+      })
+      setPasswordError('')
+    }
   }
 
   const closeModal = () => {
     setActiveModal(null)
-    // Reset form data
-    setPasswordData({
-      currentPassword: '',
-      newPassword: '',
-      confirmPassword: ''
-    })
+    setProfileError('')
+    setPasswordError('')
+    setIsSubmitting(false)
   }
 
-  const handleProfileSubmit = (e) => {
+  const handleProfileSubmit = async (e) => {
     e.preventDefault()
-    console.log('Cập nhật thông tin cá nhân:', profileData)
-    closeModal()
+    setIsSubmitting(true)
+    setProfileError('')
+    
+    try {
+      const result = await updateProfile(profileData)
+      if (result.success) {
+        closeModal()
+        // Có thể hiển thị thông báo thành công ở đây
+      }
+    } catch (error) {
+      setProfileError(error.message || 'Cập nhật thông tin thất bại')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
-  const handlePasswordSubmit = (e) => {
+  const handlePasswordSubmit = async (e) => {
     e.preventDefault()
-    if (passwordData.newPassword !== passwordData.confirmPassword) {
-      alert('Mật khẩu xác nhận không khớp!')
+    
+    if (passwordData.mat_khau_moi !== passwordData.xac_nhan_mat_khau) {
+      setPasswordError('Mật khẩu xác nhận không khớp!')
       return
     }
-    console.log('Đổi mật khẩu:', passwordData)
-    closeModal()
+    
+    setIsSubmitting(true)
+    setPasswordError('')
+    
+    try {
+      const result = await changePassword({
+        mat_khau_cu: passwordData.mat_khau_cu,
+        mat_khau_moi: passwordData.mat_khau_moi
+      })
+      
+      if (result.success) {
+        closeModal()
+        // Có thể hiển thị thông báo thành công ở đây
+      }
+    } catch (error) {
+      setPasswordError(error.message || 'Đổi mật khẩu thất bại')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const handleLogout = () => {
-    if (window.confirm('Bạn có chắc chắn muốn đăng xuất?')) {
-      console.log('Đăng xuất')
-      closeModal()
-      // Xử lý logic đăng xuất ở đây
-    }
+    logout()
+    closeModal()
   }
 
   const handleInputChange = (field, value) => {
@@ -113,7 +158,9 @@ const Header = () => {
               <div className="w-8 h-8 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center">
                 <UserOutlined className="text-white text-sm" />
               </div>
-              <span className="text-gray-700 text-sm font-medium">Anne Douglas</span>
+              <span className="text-gray-700 text-sm font-medium">
+                {user?.ho_ten || user?.ten_dang_nhap || 'User'}
+              </span>
               <DownOutlined className={`text-gray-400 text-xs transition-transform duration-200 ${
                 isProfileOpen ? 'rotate-180' : ''
               }`} />
@@ -129,8 +176,19 @@ const Header = () => {
                       <UserOutlined className="text-white text-base" />
                     </div>
                     <div>
-                      <h3 className="text-sm font-semibold text-gray-800">Anne Douglas</h3>
-                      <p className="text-xs text-gray-500">anne.douglas@example.com</p>
+                      <h3 className="text-sm font-semibold text-gray-800">
+                        {user?.ho_ten || user?.ten_dang_nhap || 'User'}
+                      </h3>
+                      <p className="text-xs text-gray-500">{user?.email || 'user@example.com'}</p>
+                      <div className="flex items-center mt-1">
+                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                          (user?.la_admin === 1 || user?.la_admin === true)
+                            ? 'bg-purple-100 text-purple-800' 
+                            : 'bg-blue-100 text-blue-800'
+                        }`}>
+                          {(user?.la_admin === 1 || user?.la_admin === true) ? 'Admin' : 'Member'}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -163,18 +221,20 @@ const Header = () => {
                     </div>
                   </button>
 
-                  <button
-                    onClick={() => handleMenuClick('settings')}
-                    className="w-full flex items-center space-x-3 px-4 py-3 text-left hover:bg-gray-50 transition-colors group"
-                  >
-                    <div className="w-8 h-8 bg-purple-50 rounded-lg flex items-center justify-center group-hover:bg-purple-100 transition-colors">
-                      <SettingOutlined className="text-purple-500 text-sm" />
-                    </div>
-                    <div>
-                      <span className="text-sm font-medium text-gray-700">Cài đặt</span>
-                      <p className="text-xs text-gray-500">Tùy chỉnh hệ thống</p>
-                    </div>
-                  </button>
+                  {(user?.la_admin === 1 || user?.la_admin === true) && (
+                    <button
+                      onClick={() => handleMenuClick('settings')}
+                      className="w-full flex items-center space-x-3 px-4 py-3 text-left hover:bg-gray-50 transition-colors group"
+                    >
+                      <div className="w-8 h-8 bg-purple-50 rounded-lg flex items-center justify-center group-hover:bg-purple-100 transition-colors">
+                        <SettingOutlined className="text-purple-500 text-sm" />
+                      </div>
+                      <div>
+                        <span className="text-sm font-medium text-gray-700">Cài đặt</span>
+                        <p className="text-xs text-gray-500">Tùy chỉnh hệ thống</p>
+                      </div>
+                    </button>
+                  )}
                 </div>
 
                 {/* Logout Section */}
@@ -216,6 +276,7 @@ const Header = () => {
               <button
                 onClick={closeModal}
                 className="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center transition-colors"
+                disabled={isSubmitting}
               >
                 <CloseOutlined className="text-gray-500" />
               </button>
@@ -223,6 +284,16 @@ const Header = () => {
 
             {/* Modal Body */}
             <form onSubmit={handleProfileSubmit} className="p-6 space-y-4">
+              {/* Error Message */}
+              {profileError && (
+                <div className="p-4 bg-red-50 border border-red-200 rounded-xl">
+                  <div className="flex items-center space-x-2">
+                    <ExclamationCircleOutlined className="text-red-500 text-lg" />
+                    <span className="text-red-700 text-sm font-medium">{profileError}</span>
+                  </div>
+                </div>
+              )}
+
               {/* Avatar Upload */}
               <div className="text-center">
                 <div className="w-20 h-20 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center mx-auto mb-3">
@@ -242,10 +313,11 @@ const Header = () => {
                   </label>
                   <input
                     type="text"
-                    value={profileData.fullName}
-                    onChange={(e) => handleInputChange('fullName', e.target.value)}
+                    value={profileData.ho_ten}
+                    onChange={(e) => handleInputChange('ho_ten', e.target.value)}
                     className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-gray-50"
                     required
+                    disabled={isSubmitting}
                   />
                 </div>
 
@@ -256,11 +328,11 @@ const Header = () => {
                   </label>
                   <input
                     type="email"
-                    value={profileData.email}
-                    onChange={(e) => handleInputChange('email', e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-gray-50"
-                    required
+                    value={user?.email || ''}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-gray-500 text-sm bg-gray-100"
+                    disabled
                   />
+                  <p className="text-xs text-gray-400 mt-1">Email không thể thay đổi</p>
                 </div>
 
                 <div>
@@ -270,10 +342,11 @@ const Header = () => {
                   </label>
                   <input
                     type="tel"
-                    value={profileData.phone}
-                    onChange={(e) => handleInputChange('phone', e.target.value)}
+                    value={profileData.so_dien_thoai}
+                    onChange={(e) => handleInputChange('so_dien_thoai', e.target.value)}
                     className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-gray-50"
                     required
+                    disabled={isSubmitting}
                   />
                 </div>
 
@@ -284,10 +357,11 @@ const Header = () => {
                   </label>
                   <input
                     type="text"
-                    value={profileData.address}
-                    onChange={(e) => handleInputChange('address', e.target.value)}
+                    value={profileData.dia_chi}
+                    onChange={(e) => handleInputChange('dia_chi', e.target.value)}
                     className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-gray-50"
                     required
+                    disabled={isSubmitting}
                   />
                 </div>
               </div>
@@ -298,14 +372,16 @@ const Header = () => {
                   type="button"
                   onClick={closeModal}
                   className="px-6 py-3 border border-gray-200 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-colors"
+                  disabled={isSubmitting}
                 >
                   Hủy
                 </button>
                 <button
                   type="submit"
-                  className="px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl font-medium hover:from-blue-600 hover:to-purple-700 transition-all duration-200 shadow-sm"
+                  disabled={isSubmitting}
+                  className="px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl font-medium hover:from-blue-600 hover:to-purple-700 transition-all duration-200 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Cập nhật
+                  {isSubmitting ? 'Đang cập nhật...' : 'Cập nhật'}
                 </button>
               </div>
             </form>
@@ -331,6 +407,7 @@ const Header = () => {
               <button
                 onClick={closeModal}
                 className="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center transition-colors"
+                disabled={isSubmitting}
               >
                 <CloseOutlined className="text-gray-500" />
               </button>
@@ -338,16 +415,27 @@ const Header = () => {
 
             {/* Modal Body */}
             <form onSubmit={handlePasswordSubmit} className="p-6 space-y-4">
+              {/* Error Message */}
+              {passwordError && (
+                <div className="p-4 bg-red-50 border border-red-200 rounded-xl">
+                  <div className="flex items-center space-x-2">
+                    <ExclamationCircleOutlined className="text-red-500 text-lg" />
+                    <span className="text-red-700 text-sm font-medium">{passwordError}</span>
+                  </div>
+                </div>
+              )}
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Mật khẩu hiện tại
                 </label>
                 <input
                   type="password"
-                  value={passwordData.currentPassword}
-                  onChange={(e) => handlePasswordChange('currentPassword', e.target.value)}
+                  value={passwordData.mat_khau_cu}
+                  onChange={(e) => handlePasswordChange('mat_khau_cu', e.target.value)}
                   className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm bg-gray-50"
                   required
+                  disabled={isSubmitting}
                 />
               </div>
 
@@ -357,10 +445,11 @@ const Header = () => {
                 </label>
                 <input
                   type="password"
-                  value={passwordData.newPassword}
-                  onChange={(e) => handlePasswordChange('newPassword', e.target.value)}
+                  value={passwordData.mat_khau_moi}
+                  onChange={(e) => handlePasswordChange('mat_khau_moi', e.target.value)}
                   className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm bg-gray-50"
                   required
+                  disabled={isSubmitting}
                 />
               </div>
 
@@ -370,10 +459,11 @@ const Header = () => {
                 </label>
                 <input
                   type="password"
-                  value={passwordData.confirmPassword}
-                  onChange={(e) => handlePasswordChange('confirmPassword', e.target.value)}
+                  value={passwordData.xac_nhan_mat_khau}
+                  onChange={(e) => handlePasswordChange('xac_nhan_mat_khau', e.target.value)}
                   className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm bg-gray-50"
                   required
+                  disabled={isSubmitting}
                 />
               </div>
 
@@ -383,14 +473,16 @@ const Header = () => {
                   type="button"
                   onClick={closeModal}
                   className="px-6 py-3 border border-gray-200 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-colors"
+                  disabled={isSubmitting}
                 >
                   Hủy
                 </button>
                 <button
                   type="submit"
-                  className="px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl font-medium hover:from-green-600 hover:to-green-700 transition-all duration-200 shadow-sm"
+                  disabled={isSubmitting}
+                  className="px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl font-medium hover:from-green-600 hover:to-green-700 transition-all duration-200 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Đổi mật khẩu
+                  {isSubmitting ? 'Đang đổi mật khẩu...' : 'Đổi mật khẩu'}
                 </button>
               </div>
             </form>
@@ -398,8 +490,8 @@ const Header = () => {
         </div>
       )}
 
-      {/* Settings Modal */}
-      {activeModal === 'settings' && (
+      {/* Settings Modal - Chỉ hiển thị cho Admin */}
+      {activeModal === 'settings' && user?.la_admin && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg">
             {/* Modal Header */}

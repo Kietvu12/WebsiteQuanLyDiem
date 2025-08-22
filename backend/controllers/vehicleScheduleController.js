@@ -49,6 +49,10 @@ class VehicleScheduleController {
   // Tạo lịch xe mới
   static async createSchedule(req, res) {
     try {
+      console.log('=== createSchedule Debug ===')
+      console.log('Request user:', req.user)
+      console.log('Request body:', req.body)
+      
       const {
         id_loai_xe,
         id_loai_tuyen,
@@ -56,10 +60,23 @@ class VehicleScheduleController {
         thoi_gian_ket_thuc_don,
         thoi_gian_bat_dau_tra,
         thoi_gian_ket_thuc_tra,
-        id_nhom
+        id_nhom,
+        id_nguoi_nhan
       } = req.body;
 
-      const id_nguoi_tao = req.user.id;
+      const id_nguoi_tao = req.user.id_nguoi_dung;
+
+      console.log('Extracted data:', {
+        id_loai_xe,
+        id_loai_tuyen,
+        thoi_gian_bat_dau_don,
+        thoi_gian_ket_thuc_don,
+        thoi_gian_bat_dau_tra,
+        thoi_gian_ket_thuc_tra,
+        id_nhom,
+        id_nguoi_nhan,
+        id_nguoi_tao
+      })
 
       // Kiểm tra dữ liệu đầu vào
       if (!id_loai_xe || !id_loai_tuyen || !thoi_gian_bat_dau_don || !thoi_gian_ket_thuc_don || !id_nhom) {
@@ -70,13 +87,31 @@ class VehicleScheduleController {
       }
 
       // Kiểm tra người dùng có trong nhóm không
-      const isMember = await Group.isMember(id_nhom, id_nguoi_tao);
+      console.log('Checking if user is member of group...')
+      console.log('User is admin:', req.user.la_admin)
+      
+      let isMember = false
+      if (req.user.la_admin === 1 || req.user.la_admin === true) {
+        // Admin có thể tạo lịch xe ở mọi nhóm
+        console.log('User is admin, bypassing group membership check')
+        isMember = true
+      } else {
+        // User thường phải kiểm tra thành viên nhóm
+        console.log('User is not admin, checking group membership...')
+        const isMemberResult = await Group.isMember(id_nhom, id_nguoi_tao);
+        isMember = isMemberResult
+      }
+      
+      console.log('Group membership check result:', isMember)
+      
       if (!isMember) {
         return res.status(403).json({
           success: false,
           message: 'Bạn không phải thành viên của nhóm này'
         });
       }
+
+      console.log('Proceeding with vehicle schedule creation...')
 
       // Tạo lịch xe mới
       const scheduleId = await VehicleSchedule.create({
@@ -87,16 +122,52 @@ class VehicleScheduleController {
         thoi_gian_bat_dau_tra,
         thoi_gian_ket_thuc_tra,
         id_nguoi_tao,
-        id_nhom
+        id_nhom,
+        id_nguoi_nhan
       });
 
+      console.log('Vehicle schedule created with ID:', scheduleId)
+
+      // Tạo thông báo cho người nhận lịch (nếu có)
+      if (id_nguoi_nhan) {
+        console.log('=== TẠO THÔNG BÁO CHO NGƯỜI NHẬN LỊCH ===')
+        console.log('ID người nhận lịch:', id_nguoi_nhan)
+        console.log('ID lịch xe:', scheduleId)
+        console.log('Tên người tạo:', req.user.ten_dang_nhap)
+        
+        try {
+          const { Notification } = require('../models');
+          const notificationData = {
+            id_nguoi_dung: id_nguoi_nhan,
+            noi_dung: `${req.user.ten_dang_nhap} đã tạo lịch xe mới cho bạn`
+          };
+          console.log('Dữ liệu thông báo lịch xe:', notificationData)
+          
+          const notificationId = await Notification.create(notificationData);
+          console.log('✅ Thông báo lịch xe được tạo thành công với ID:', notificationId)
+          console.log('=== THÔNG BÁO LỊCH XE ĐÃ ĐƯỢC GỬI ===')
+        } catch (notificationError) {
+          console.error('❌ Lỗi khi tạo thông báo lịch xe:')
+          console.error('Error details:', notificationError)
+          console.error('Error message:', notificationError.message)
+          console.error('Error stack:', notificationError.stack)
+          // Không dừng quá trình tạo lịch xe nếu tạo thông báo thất bại
+        }
+      } else {
+        console.log('⚠️ Không có người nhận lịch, bỏ qua việc tạo thông báo')
+      }
+
+      console.log('=== createSchedule Success ===')
       res.status(201).json({
         success: true,
         message: 'Tạo lịch xe thành công',
         data: { id: scheduleId }
       });
     } catch (error) {
-      console.error('Lỗi tạo lịch xe:', error);
+      console.error('=== createSchedule Error ===')
+      console.error('Error details:', error)
+      console.error('Error message:', error.message)
+      console.error('Error stack:', error.stack)
       res.status(500).json({
         success: false,
         message: 'Lỗi server khi tạo lịch xe'
@@ -128,7 +199,7 @@ class VehicleScheduleController {
       }
 
       // Kiểm tra quyền: chỉ người tạo hoặc admin mới được cập nhật
-      if (req.user.id !== currentSchedule.id_nguoi_tao && !req.user.isAdmin) {
+      if (req.user.id_nguoi_dung !== currentSchedule.id_nguoi_tao && !req.user.la_admin) {
         return res.status(403).json({
           success: false,
           message: 'Không có quyền cập nhật lịch xe này'
@@ -182,7 +253,7 @@ class VehicleScheduleController {
       }
 
       // Kiểm tra quyền: chỉ người tạo hoặc admin mới được cập nhật trạng thái
-      if (req.user.id !== currentSchedule.id_nguoi_tao && !req.user.isAdmin) {
+      if (req.user.id_nguoi_dung !== currentSchedule.id_nguoi_tao && !req.user.la_admin) {
         return res.status(403).json({
           success: false,
           message: 'Không có quyền cập nhật trạng thái lịch xe này'
@@ -227,7 +298,7 @@ class VehicleScheduleController {
       }
 
       // Kiểm tra quyền: chỉ người tạo hoặc admin mới được xóa
-      if (req.user.id !== currentSchedule.id_nguoi_tao && !req.user.isAdmin) {
+      if (req.user.id_nguoi_dung !== currentSchedule.id_nguoi_tao && !req.user.la_admin) {
         return res.status(403).json({
           success: false,
           message: 'Không có quyền xóa lịch xe này'
@@ -262,8 +333,24 @@ class VehicleScheduleController {
       const { groupId } = req.params;
 
       // Kiểm tra người dùng có trong nhóm không
-      const isMember = await Group.isMember(groupId, req.user.id);
-      if (!isMember && !req.user.isAdmin) {
+      console.log('Checking if user is member of group...')
+      console.log('User is admin:', req.user.la_admin)
+      
+      let isMember = false
+      if (req.user.la_admin === 1 || req.user.la_admin === true) {
+        // Admin có thể xem lịch xe của mọi nhóm
+        console.log('User is admin, bypassing group membership check')
+        isMember = true
+      } else {
+        // User thường phải kiểm tra thành viên nhóm
+        console.log('User is not admin, checking group membership...')
+        const isMemberResult = await Group.isMember(groupId, req.user.id_nguoi_dung);
+        isMember = isMemberResult
+      }
+      
+      console.log('Group membership check result:', isMember)
+      
+      if (!isMember) {
         return res.status(403).json({
           success: false,
           message: 'Bạn không phải thành viên của nhóm này'
@@ -292,7 +379,7 @@ class VehicleScheduleController {
       const { userId } = req.params;
 
       // Kiểm tra quyền: chỉ admin hoặc chính người dùng đó mới được xem
-      if (req.user.id !== parseInt(userId) && !req.user.isAdmin) {
+      if (req.user.id_nguoi_dung !== parseInt(userId) && !req.user.la_admin) {
         return res.status(403).json({
           success: false,
           message: 'Không có quyền xem lịch xe của người dùng khác'
@@ -351,6 +438,58 @@ class VehicleScheduleController {
       res.status(500).json({
         success: false,
         message: 'Lỗi server khi lấy lịch xe theo ngày'
+      });
+    }
+  }
+
+  // Lấy danh sách loại xe
+  static async getVehicleTypes(req, res) {
+    try {
+      console.log('getVehicleTypes - Request received')
+      console.log('getVehicleTypes - User:', req.user)
+      
+      const { VehicleType } = require('../models');
+      console.log('getVehicleTypes - VehicleType model loaded')
+      
+      const vehicleTypes = await VehicleType.getAll();
+      console.log('getVehicleTypes - Data from database:', vehicleTypes)
+
+      res.json({
+        success: true,
+        message: 'Lấy danh sách loại xe thành công',
+        data: vehicleTypes
+      });
+    } catch (error) {
+      console.error('Lỗi lấy danh sách loại xe:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Lỗi server khi lấy danh sách loại xe'
+      });
+    }
+  }
+
+  // Lấy danh sách loại tuyến
+  static async getRouteTypes(req, res) {
+    try {
+      console.log('getRouteTypes - Request received')
+      console.log('getRouteTypes - User:', req.user)
+      
+      const { RouteType } = require('../models');
+      console.log('getRouteTypes - RouteType model loaded')
+      
+      const routeTypes = await RouteType.getAll();
+      console.log('getRouteTypes - Data from database:', routeTypes)
+
+      res.json({
+        success: true,
+        message: 'Lấy danh sách loại tuyến thành công',
+        data: routeTypes
+      });
+    } catch (error) {
+      console.error('Lỗi lấy danh sách loại tuyến:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Lỗi server khi lấy danh sách loại tuyến'
       });
     }
   }

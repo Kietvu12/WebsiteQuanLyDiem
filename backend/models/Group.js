@@ -113,12 +113,24 @@ class Group {
   // Kiểm tra người dùng có trong nhóm không
   static async isMember(groupId, userId) {
     try {
-      const [rows] = await pool.execute(
-        'SELECT COUNT(*) as count FROM thanh_vien_nhom WHERE id_nhom = ? AND id_nguoi_dung = ?',
-        [groupId, userId]
-      );
-      return rows[0].count > 0;
+      console.log('Group.isMember - Checking membership...')
+      console.log('Group ID:', groupId, 'Type:', typeof groupId)
+      console.log('User ID:', userId, 'Type:', typeof userId)
+      
+      const query = 'SELECT COUNT(*) as count FROM thanh_vien_nhom WHERE id_nhom = ? AND id_nguoi_dung = ?'
+      console.log('SQL Query:', query)
+      console.log('Query Parameters:', [groupId, userId])
+      
+      const [rows] = await pool.execute(query, [groupId, userId])
+      console.log('Database result:', rows)
+      
+      const count = rows[0].count
+      const isMember = count > 0
+      console.log('Count:', count, 'Is Member:', isMember)
+      
+      return isMember
     } catch (error) {
+      console.error('Group.isMember - Database error:', error)
       throw new Error(`Lỗi kiểm tra thành viên: ${error.message}`);
     }
   }

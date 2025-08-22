@@ -16,12 +16,20 @@ class User {
   // Lấy người dùng theo ID
   static async getById(id) {
     try {
+      console.log('User.getById - Called with ID:', id)
+      console.log('User.getById - ID type:', typeof id)
+      
       const [rows] = await pool.execute(
         'SELECT id_nguoi_dung, ten_dang_nhap, email, ho_ten, so_dien_thoai, dia_chi, so_du, diem, la_admin, ngay_tao FROM nguoi_dung WHERE id_nguoi_dung = ?',
         [id]
       );
+      
+      console.log('User.getById - Database result:', rows)
+      console.log('User.getById - Returning:', rows[0] || null)
+      
       return rows[0] || null;
     } catch (error) {
+      console.error('User.getById - Database error:', error)
       throw new Error(`Lỗi lấy thông tin người dùng: ${error.message}`);
     }
   }
@@ -96,13 +104,141 @@ class User {
   // Cập nhật số dư và điểm
   static async updateBalanceAndPoints(id, so_du, diem) {
     try {
+      console.log('User.updateBalanceAndPoints - Updating user ID:', id)
+      console.log('User.updateBalanceAndPoints - New balance:', so_du, 'Type:', typeof so_du)
+      console.log('User.updateBalanceAndPoints - New points:', diem, 'Type:', typeof diem)
+      
+      // Kiểm tra dữ liệu đầu vào
+      if (so_du === null || so_du === undefined) {
+        throw new Error('Số dư không được để trống')
+      }
+      if (diem === null || diem === undefined) {
+        throw new Error('Số điểm không được để trống')
+      }
+      
+      // Chuyển đổi sang số nếu cần
+      const numericBalance = parseFloat(so_du)
+      const numericPoints = parseInt(diem)
+      
+      if (isNaN(numericBalance)) {
+        throw new Error('Số dư phải là số hợp lệ')
+      }
+      if (isNaN(numericPoints)) {
+        throw new Error('Số điểm phải là số nguyên hợp lệ')
+      }
+      
+      console.log('User.updateBalanceAndPoints - Numeric balance:', numericBalance)
+      console.log('User.updateBalanceAndPoints - Numeric points:', numericPoints)
+      
+      // Thực hiện cập nhật
       const [result] = await pool.execute(
         'UPDATE nguoi_dung SET so_du = ?, diem = ? WHERE id_nguoi_dung = ?',
-        [so_du, diem, id]
+        [numericBalance, numericPoints, id]
       );
-      return result.affectedRows > 0;
+      
+      const success = result.affectedRows > 0
+      console.log('User.updateBalanceAndPoints - Update result:', success)
+      console.log('User.updateBalanceAndPoints - Affected rows:', result.affectedRows)
+      
+      if (success) {
+        console.log('✅ Cập nhật số dư và điểm thành công cho user ID:', id)
+        console.log('✅ Số dư mới:', numericBalance, 'Số điểm mới:', numericPoints)
+      } else {
+        console.log('⚠️ Không có dòng nào được cập nhật cho user ID:', id)
+      }
+      
+      return success
     } catch (error) {
+      console.error('User.updateBalanceAndPoints - Error:', error)
       throw new Error(`Lỗi cập nhật số dư và điểm: ${error.message}`);
+    }
+  }
+
+  // Cập nhật chỉ số dư
+  static async updateBalance(id, so_du) {
+    try {
+      console.log('User.updateBalance - Updating balance for user ID:', id)
+      console.log('User.updateBalance - New balance:', so_du, 'Type:', typeof so_du)
+      
+      // Kiểm tra dữ liệu đầu vào
+      if (so_du === null || so_du === undefined) {
+        throw new Error('Số dư không được để trống')
+      }
+      
+      // Chuyển đổi sang số nếu cần
+      const numericBalance = parseFloat(so_du)
+      
+      if (isNaN(numericBalance)) {
+        throw new Error('Số dư phải là số hợp lệ')
+      }
+      
+      console.log('User.updateBalance - Numeric balance:', numericBalance)
+      
+      // Thực hiện cập nhật
+      const [result] = await pool.execute(
+        'UPDATE nguoi_dung SET so_du = ? WHERE id_nguoi_dung = ?',
+        [numericBalance, id]
+      );
+      
+      const success = result.affectedRows > 0
+      console.log('User.updateBalance - Update result:', success)
+      console.log('User.updateBalance - Affected rows:', result.affectedRows)
+      
+      if (success) {
+        console.log('✅ Cập nhật số dư thành công cho user ID:', id)
+        console.log('✅ Số dư mới:', numericBalance)
+      } else {
+        console.log('⚠️ Không có dòng nào được cập nhật cho user ID:', id)
+      }
+      
+      return success
+    } catch (error) {
+      console.error('User.updateBalance - Error:', error)
+      throw new Error(`Lỗi cập nhật số dư: ${error.message}`);
+    }
+  }
+
+  // Cập nhật chỉ số điểm
+  static async updatePoints(id, diem) {
+    try {
+      console.log('User.updatePoints - Updating points for user ID:', id)
+      console.log('User.updatePoints - New points:', diem, 'Type:', typeof diem)
+      
+      // Kiểm tra dữ liệu đầu vào
+      if (diem === null || diem === undefined) {
+        throw new Error('Số điểm không được để trống')
+      }
+      
+      // Chuyển đổi sang số nếu cần
+      const numericPoints = parseInt(diem)
+      
+      if (isNaN(numericPoints)) {
+        throw new Error('Số điểm phải là số nguyên hợp lệ')
+      }
+      
+      console.log('User.updatePoints - Numeric points:', numericPoints)
+      
+      // Thực hiện cập nhật
+      const [result] = await pool.execute(
+        'UPDATE nguoi_dung SET diem = ? WHERE id_nguoi_dung = ?',
+        [numericPoints, id]
+      );
+      
+      const success = result.affectedRows > 0
+      console.log('User.updatePoints - Update result:', success)
+      console.log('User.updatePoints - Affected rows:', result.affectedRows)
+      
+      if (success) {
+        console.log('✅ Cập nhật số điểm thành công cho user ID:', id)
+        console.log('✅ Số điểm mới:', numericPoints)
+      } else {
+        console.log('⚠️ Không có dòng nào được cập nhật cho user ID:', id)
+      }
+      
+      return success
+    } catch (error) {
+      console.error('User.updatePoints - Error:', error)
+      throw new Error(`Lỗi cập nhật số điểm: ${error.message}`);
     }
   }
 

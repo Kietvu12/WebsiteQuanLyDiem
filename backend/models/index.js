@@ -4,6 +4,8 @@ const VehicleSchedule = require('./VehicleSchedule');
 const Transaction = require('./Transaction');
 const Notification = require('./Notification');
 const Report = require('./Report');
+const VehicleType = require('./VehicleType');
+const RouteType = require('./RouteType');
 
 module.exports = {
   User,
@@ -11,5 +13,7 @@ module.exports = {
   VehicleSchedule,
   Transaction,
   Notification,
-  Report
+  Report,
+  VehicleType,
+  RouteType
 };

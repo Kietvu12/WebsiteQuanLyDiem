@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { 
   BellOutlined,
   CloseOutlined,
@@ -6,63 +6,129 @@ import {
   CloseCircleOutlined,
   ExclamationCircleOutlined,
   InfoCircleOutlined,
-  CheckCircleOutlined
+  CheckCircleOutlined,
+  LoadingOutlined
 } from '@ant-design/icons'
+import { useAuth } from '../../contexts/AuthContext'
+import { transactionService } from '../../services/transactionService'
+import { formatTime, formatDate } from '../../utils/dateUtils'
 
 const Notification = () => {
+  const { user } = useAuth()
   const [isOpen, setIsOpen] = useState(false)
   const [selectedNotification, setSelectedNotification] = useState(null)
-  const [notifications, setNotifications] = useState([
-    {
-      id: 1,
-      title: 'Giao dịch mới cần xác nhận',
-      content: 'Nguyễn Văn A đã tạo giao dịch "Giao lịch xe khách Hà Nội - Hải Phòng" với số tiền 2,500,000 VNĐ',
-      type: 'transaction',
-      sender: 'Nguyễn Văn A',
-      amount: '2,500,000 VNĐ',
-      points: '250 điểm',
-      datetime: '2024-01-15 14:30:00',
-      isRead: false,
-      status: 'pending'
-    },
-    {
-      id: 2,
-      title: 'Yêu cầu san lịch',
-      content: 'Lê Văn C yêu cầu san lịch xe khách Hà Nội - Hải Phòng ngày 16/01/2024',
-      type: 'request',
-      sender: 'Lê Văn C',
-      route: 'Hà Nội - Hải Phòng',
-      date: '16/01/2024',
-      datetime: '2024-01-15 13:15:00',
-      isRead: false,
-      status: 'pending'
-    },
-    {
-      id: 3,
-      title: 'Giao dịch đã hoàn thành',
-      content: 'Giao dịch "Thanh toán dịch vụ internet" của Hoàng Văn E đã được hoàn thành thành công',
-      type: 'success',
-      sender: 'Hoàng Văn E',
-      service: 'Thanh toán dịch vụ internet',
-      datetime: '2024-01-15 12:00:00',
-      isRead: true,
-      status: 'completed'
-    },
-    {
-      id: 4,
-      title: 'Hủy lịch xe',
-      content: 'Đặng Văn G đã hủy lịch xe khách Hà Nội - Hải Phòng ngày 15/01/2024',
-      type: 'cancel',
-      sender: 'Đặng Văn G',
-      route: 'Hà Nội - Hải Phòng',
-      date: '15/01/2024',
-      datetime: '2024-01-15 11:45:00',
-      isRead: true,
-      status: 'cancelled'
-    }
-  ])
+  const [notifications, setNotifications] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [processingId, setProcessingId] = useState(null)
+  const [markingAllAsRead, setMarkingAllAsRead] = useState(false)
 
-  const unreadCount = notifications.filter(n => !n.isRead).length
+  // Load notifications khi component mount hoặc user thay đổi
+  useEffect(() => {
+    if (user) {
+      loadNotifications()
+    }
+  }, [user])
+
+  // Load notifications từ API thực
+  const loadNotifications = async () => {
+    if (!user) return
+    
+    setLoading(true)
+    try {
+      const token = localStorage.getItem('authToken')
+      
+      // Sử dụng API thông báo thực
+      const response = await fetch('http://localhost:5000/api/notifications', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success) {
+          console.log('✅ Thông báo được tải thành công:', data.data)
+          setNotifications(data.data)
+        } else {
+          console.error('❌ Lỗi khi tải thông báo:', data.message)
+          setNotifications([])
+        }
+      } else {
+        console.error('❌ HTTP error khi tải thông báo:', response.status)
+        setNotifications([])
+      }
+    } catch (error) {
+      console.error('❌ Lỗi khi tải thông báo:', error)
+      setNotifications([])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Tạo tiêu đề thông báo từ dữ liệu thực
+  const getNotificationTitle = (notification) => {
+    if (notification.noi_dung.includes('lịch xe mới')) {
+      return 'Lịch xe mới'
+    } else if (notification.noi_dung.includes('xác nhận')) {
+      return 'Giao dịch được xác nhận'
+    } else if (notification.noi_dung.includes('hủy')) {
+      return 'Giao dịch bị hủy'
+    } else if (notification.noi_dung.includes('giao dịch giao lịch')) {
+      return 'Giao dịch giao lịch thành công'
+    } else if (notification.noi_dung.includes('giao dịch san cho')) {
+      return 'Giao dịch san cho thành công'
+    } else {
+      return 'Thông báo mới'
+    }
+  }
+
+  // Tạo nội dung thông báo từ dữ liệu thực
+  const getNotificationContent = (notification) => {
+    return notification.noi_dung || 'Không có nội dung'
+  }
+
+  // Xác định loại thông báo từ dữ liệu thực
+  const getNotificationType = (notification) => {
+    if (notification.noi_dung.includes('lịch xe mới')) {
+      return 'transaction'
+    } else if (notification.noi_dung.includes('xác nhận')) {
+      return 'success'
+    } else if (notification.noi_dung.includes('hủy')) {
+      return 'cancel'
+    } else if (notification.noi_dung.includes('giao dịch')) {
+      return 'info'
+    } else {
+      return 'info'
+    }
+  }
+
+  // Format thời gian
+  const formatDateTime = (dateString) => {
+    if (!dateString) return 'N/A'
+    try {
+      const date = new Date(dateString)
+      return date.toLocaleString('vi-VN', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+      })
+    } catch (error) {
+      return dateString
+    }
+  }
+
+  // Tính số thông báo chưa đọc
+  const unreadCount = notifications.filter(n => !n.da_doc).length
+  
+  // Cập nhật unreadCount khi notifications thay đổi
+  useEffect(() => {
+    const newUnreadCount = notifications.filter(n => !n.da_doc).length
+    // Có thể thêm logic để cập nhật badge ở đây nếu cần
+  }, [notifications])
 
   const getNotificationIcon = (type) => {
     switch (type) {
@@ -94,29 +160,127 @@ const Notification = () => {
     }
   }
 
-  const handleNotificationClick = (notification) => {
+  const handleNotificationClick = async (notification) => {
     setSelectedNotification(notification)
-    // Đánh dấu đã đọc
-    setNotifications(prev => 
-      prev.map(n => 
-        n.id === notification.id ? { ...n, isRead: true } : n
-      )
-    )
-  }
-
-  const handleConfirm = () => {
-    if (selectedNotification) {
-      // Xử lý logic xác nhận thông báo
-      console.log('Xác nhận thông báo:', selectedNotification.id)
-      setSelectedNotification(null)
+    
+    // Chỉ đánh dấu đã đọc nếu chưa đọc
+    if (!notification.da_doc) {
+      try {
+        const token = localStorage.getItem('authToken')
+        const response = await fetch(`http://localhost:5000/api/notifications/${notification.id_thong_bao}/read`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        })
+        
+        if (response.ok) {
+          // Cập nhật state local
+          setNotifications(prev => 
+            prev.map(n => 
+              n.id_thong_bao === notification.id_thong_bao ? { ...n, da_doc: true } : n
+            )
+          )
+          console.log('✅ Đã đánh dấu thông báo đã đọc')
+        } else {
+          console.error('❌ Lỗi khi đánh dấu thông báo đã đọc:', response.status)
+        }
+      } catch (error) {
+        console.error('❌ Lỗi khi đánh dấu thông báo đã đọc:', error)
+      }
     }
   }
 
-  const handleReject = () => {
-    if (selectedNotification) {
-      // Xử lý logic từ chối thông báo
-      console.log('Từ chối thông báo:', selectedNotification.id)
-      setSelectedNotification(null)
+  const handleMarkAllAsRead = async () => {
+    if (markingAllAsRead) return // Prevent multiple clicks
+    
+    setMarkingAllAsRead(true)
+    try {
+      const token = localStorage.getItem('authToken')
+      const response = await fetch('http://localhost:5000/api/notifications/mark-all-read', {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+      
+      if (response.ok) {
+        // Cập nhật state local - đánh dấu tất cả đã đọc
+        setNotifications(prev => 
+          prev.map(n => ({ ...n, da_doc: true }))
+        )
+        console.log('✅ Đã đánh dấu tất cả thông báo đã đọc')
+      } else {
+        console.error('❌ Lỗi khi đánh dấu tất cả thông báo đã đọc:', response.status)
+      }
+    } catch (error) {
+      console.error('❌ Lỗi khi đánh dấu tất cả thông báo đã đọc:', error)
+    } finally {
+      setMarkingAllAsRead(false)
+    }
+  }
+
+  const handleConfirm = async () => {
+    if (!selectedNotification || !selectedNotification.id_giao_dich) return
+    
+    setProcessingId(selectedNotification.id_thong_bao)
+    try {
+      const token = localStorage.getItem('authToken')
+      const response = await transactionService.confirmTransaction(token, selectedNotification.id_giao_dich)
+      
+      if (response.success) {
+        // Cập nhật trạng thái thông báo
+        setNotifications(prev => 
+          prev.map(n => 
+            n.id_thong_bao === selectedNotification.id_thong_bao 
+              ? { ...n, trang_thai: 'completed', da_doc: true }
+              : n
+          )
+        )
+        
+        // Đóng modal
+        setSelectedNotification(null)
+        
+        // Reload notifications
+        loadNotifications()
+      }
+    } catch (error) {
+      console.error('Error confirming notification:', error)
+    } finally {
+      setProcessingId(null)
+    }
+  }
+
+  const handleReject = async () => {
+    if (!selectedNotification || !selectedNotification.id_giao_dich) return
+    
+    setProcessingId(selectedNotification.id_thong_bao)
+    try {
+      const token = localStorage.getItem('authToken')
+      const response = await transactionService.cancelTransaction(token, selectedNotification.id_giao_dich)
+      
+      if (response.success) {
+        // Cập nhật trạng thái thông báo
+        setNotifications(prev => 
+          prev.map(n => 
+            n.id_thong_bao === selectedNotification.id_thong_bao 
+              ? { ...n, trang_thai: 'cancelled', da_doc: true }
+              : n
+          )
+        )
+        
+        // Đóng modal
+        setSelectedNotification(null)
+        
+        // Reload notifications
+        loadNotifications()
+      }
+    } catch (error) {
+      console.error('Error rejecting notification:', error)
+    } finally {
+      setProcessingId(null)
     }
   }
 
@@ -146,25 +310,50 @@ const Notification = () => {
             {/* Header */}
             <div className="flex items-center justify-between p-4 border-b border-gray-100">
               <h3 className="text-lg font-semibold text-gray-800">Thông báo</h3>
-              <span className="text-sm text-gray-500">
-                {unreadCount} chưa đọc
-              </span>
+              <div className="flex items-center space-x-2">
+                <span className="text-sm text-gray-500">
+                  {unreadCount} chưa đọc
+                </span>
+                {unreadCount > 0 && (
+                  <button
+                    onClick={handleMarkAllAsRead}
+                    disabled={markingAllAsRead}
+                    className={`text-xs text-blue-600 hover:text-blue-800 underline hover:no-underline transition-all duration-200 ${
+                      markingAllAsRead ? 'opacity-50 cursor-not-allowed' : ''
+                    }`}
+                    title="Đánh dấu tất cả thông báo đã đọc"
+                  >
+                    {markingAllAsRead ? (
+                      <>
+                        <LoadingOutlined className="animate-spin mr-1" />
+                        Đang xử lý...
+                      </>
+                    ) : (
+                      `Đánh dấu tất cả đã đọc (${unreadCount})`
+                    )}
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Notification List */}
             <div className="max-h-96 overflow-y-auto">
-              {notifications.length === 0 ? (
+              {loading ? (
+                <div className="p-6 text-center">
+                  <LoadingOutlined className="text-2xl text-blue-500 animate-spin" />
+                </div>
+              ) : notifications.length === 0 ? (
                 <div className="p-6 text-center text-gray-500">
                   Không có thông báo nào
                 </div>
               ) : (
                 notifications.map((notification) => (
                   <div
-                    key={notification.id}
+                    key={notification.id_thong_bao}
                     onClick={() => handleNotificationClick(notification)}
                     className={`p-4 border-l-4 cursor-pointer transition-colors hover:bg-gray-50 ${
                       getNotificationColor(notification.type)
-                    } ${!notification.isRead ? 'bg-blue-50' : 'bg-white'}`}
+                    } ${!notification.da_doc ? 'bg-blue-50' : 'bg-white'}`}
                   >
                     <div className="flex items-start space-x-3">
                       <div className="mt-1">
@@ -172,18 +361,18 @@ const Notification = () => {
                       </div>
                       <div className="flex-1 min-w-0">
                         <h4 className={`text-sm font-medium mb-1 ${
-                          !notification.isRead ? 'text-gray-900' : 'text-gray-700'
+                          !notification.da_doc ? 'text-gray-900' : 'text-gray-700'
                         }`}>
-                          {notification.title}
+                          {getNotificationTitle(notification)}
                         </h4>
                         <p className="text-xs text-gray-500 mb-2 line-clamp-2">
-                          {notification.content}
+                          {getNotificationContent(notification)}
                         </p>
                         <span className="text-xs text-gray-400">
-                          {notification.datetime}
+                          {formatDateTime(notification.ngay_tao)}
                         </span>
                       </div>
-                      {!notification.isRead && (
+                      {!notification.da_doc && (
                         <div className="w-2 h-2 bg-blue-500 rounded-full mt-2"></div>
                       )}
                     </div>
@@ -207,10 +396,10 @@ const Notification = () => {
                 </div>
                 <div>
                   <h2 className="text-lg font-bold text-gray-800">
-                    {selectedNotification.title}
+                    {getNotificationTitle(selectedNotification)}
                   </h2>
                   <p className="text-sm text-gray-500">
-                    {selectedNotification.datetime}
+                    {formatDateTime(selectedNotification.ngay_tao)}
                   </p>
                 </div>
               </div>
@@ -231,69 +420,179 @@ const Notification = () => {
               </div>
 
               {/* Additional Details */}
-              {selectedNotification.type === 'transaction' && (
+              {selectedNotification.id_giao_dich && (
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">Người gửi:</span>
+                    <span className="text-sm text-gray-600">ID giao dịch:</span>
                     <span className="text-sm font-medium text-gray-800">
-                      {selectedNotification.sender}
+                      {selectedNotification.id_giao_dich}
                     </span>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">Số tiền:</span>
-                    <span className="text-sm font-medium text-blue-600">
-                      {selectedNotification.amount}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">Số điểm:</span>
-                    <span className="text-sm font-medium text-green-600">
-                      {selectedNotification.points}
-                    </span>
-                  </div>
-                </div>
-              )}
-
-              {selectedNotification.type === 'request' && (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">Người yêu cầu:</span>
-                    <span className="text-sm font-medium text-gray-800">
-                      {selectedNotification.sender}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">Tuyến xe:</span>
-                    <span className="text-sm font-medium text-gray-800">
-                      {selectedNotification.route}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-600">Ngày:</span>
-                    <span className="text-sm font-medium text-gray-800">
-                      {selectedNotification.date}
-                    </span>
-                  </div>
+                  {selectedNotification.ten_nguoi_gui && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-600">Người gửi:</span>
+                      <span className="text-sm font-medium text-gray-800">
+                        {selectedNotification.ten_nguoi_gui}
+                      </span>
+                    </div>
+                  )}
+                  {selectedNotification.ten_nguoi_nhan && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-600">Người nhận:</span>
+                      <span className="text-sm font-medium text-gray-800">
+                        {selectedNotification.ten_nguoi_nhan}
+                      </span>
+                    </div>
+                  )}
+                  {selectedNotification.so_tien && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-600">Số tiền:</span>
+                      <span className={`text-sm font-medium ${
+                        selectedNotification.so_tien > 0 ? 'text-green-600' : 
+                        selectedNotification.so_tien < 0 ? 'text-red-600' : 'text-gray-600'
+                      }`}>
+                        {selectedNotification.so_tien > 0 ? '+' : ''}
+                        {new Intl.NumberFormat('vi-VN', {
+                          style: 'currency',
+                          currency: 'VND'
+                        }).format(selectedNotification.so_tien)}
+                      </span>
+                    </div>
+                  )}
+                  {selectedNotification.diem && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-600">Số điểm:</span>
+                      <span className={`text-sm font-medium ${
+                        selectedNotification.diem > 0 ? 'text-green-600' : 
+                        selectedNotification.diem < 0 ? 'text-red-600' : 'text-gray-600'
+                      }`}>
+                        {selectedNotification.diem > 0 ? '+' : ''}
+                        {selectedNotification.diem}
+                      </span>
+                    </div>
+                  )}
+                  
+                  {/* Thông tin lịch xe */}
+                  {selectedNotification.id_lich_xe && (
+                    <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                      <h4 className="text-sm font-semibold text-blue-800 mb-2">Thông tin lịch xe</h4>
+                      <div className="space-y-2 text-sm">
+                        {selectedNotification.ten_loai_xe && (
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Loại xe:</span>
+                            <span className="font-medium text-gray-800">
+                              {selectedNotification.ten_loai_xe} ({selectedNotification.so_cho} chỗ)
+                            </span>
+                          </div>
+                        )}
+                        {selectedNotification.ten_loai_tuyen && (
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Loại tuyến:</span>
+                            <span className="font-medium text-gray-800">
+                              {selectedNotification.ten_loai_tuyen} {selectedNotification.la_khu_hoi ? '(Khứ hồi)' : '(Một chiều)'}
+                            </span>
+                          </div>
+                        )}
+                        {selectedNotification.thoi_gian_bat_dau_don && (
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Thời gian đón:</span>
+                            <span className="font-medium text-gray-800">
+                              {formatTime(selectedNotification.thoi_gian_bat_dau_don)}
+                            </span>
+                          </div>
+                        )}
+                        {selectedNotification.thoi_gian_ket_thuc_don && (
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Kết thúc đón:</span>
+                            <span className="font-medium text-gray-800">
+                              {formatTime(selectedNotification.thoi_gian_ket_thuc_don)}
+                            </span>
+                          </div>
+                        )}
+                        {selectedNotification.thoi_gian_bat_dau_tra && (
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Thời gian trả:</span>
+                            <span className="font-medium text-gray-800">
+                              {formatTime(selectedNotification.thoi_gian_bat_dau_tra)}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
               {/* Action Buttons */}
-              {selectedNotification.status === 'pending' && (
+              {selectedNotification.id_giao_dich && (
                 <div className="flex items-center space-x-3 pt-4 border-t border-gray-100">
-                  <button
-                    onClick={handleReject}
-                    className="flex-1 px-4 py-3 border border-red-200 text-red-600 rounded-xl font-medium hover:bg-red-50 transition-colors flex items-center justify-center space-x-2"
-                  >
-                    <CloseCircleOutlined />
-                    <span>Từ chối</span>
-                  </button>
-                  <button
-                    onClick={handleConfirm}
-                    className="flex-1 px-4 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl font-medium hover:from-blue-600 hover:to-purple-700 transition-all duration-200 flex items-center justify-center space-x-2"
-                  >
-                    <CheckOutlined />
-                    <span>Xác nhận</span>
-                  </button>
+                  {/* Nút xác nhận - chỉ hiển thị cho người nhận giao dịch giao lịch CHƯA XỬ LÝ */}
+                  {selectedNotification.id_loai_giao_dich === 1 && 
+                   selectedNotification.ten_nguoi_nhan === user.ho_ten &&
+                   selectedNotification.trang_thai === 'cho_xac_nhan' && (
+                    <button
+                      onClick={handleConfirm}
+                      disabled={processingId === selectedNotification.id_thong_bao}
+                      className="flex-1 px-4 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl font-medium hover:from-green-600 hover:to-emerald-700 transition-all duration-200 flex items-center justify-center space-x-2 disabled:opacity-50"
+                    >
+                      {processingId === selectedNotification.id_thong_bao ? (
+                        <LoadingOutlined className="animate-spin" />
+                      ) : (
+                        <CheckOutlined />
+                      )}
+                      <span>Xác nhận</span>
+                    </button>
+                  )}
+                  
+                  {/* Nút hủy giao dịch - hiển thị cho người gửi, người nhận hoặc admin KHI GIAO DỊCH CHƯA XỬ LÝ */}
+                  {(selectedNotification.ten_nguoi_gui === user.ho_ten || 
+                    selectedNotification.ten_nguoi_nhan === user.ho_ten ||
+                    user.la_admin === 1 || 
+                    user.la_admin === true) &&
+                    selectedNotification.trang_thai === 'cho_xac_nhan' && (
+                    <button
+                      onClick={handleReject}
+                      disabled={processingId === selectedNotification.id_thong_bao}
+                      className="flex-1 px-4 py-3 border border-red-200 text-red-600 rounded-xl font-medium hover:bg-red-50 transition-colors flex items-center justify-center space-x-2 disabled:opacity-50"
+                    >
+                      {processingId === selectedNotification.id_thong_bao ? (
+                        <LoadingOutlined className="animate-spin" />
+                      ) : (
+                        <CloseCircleOutlined />
+                      )}
+                      <span>Hủy giao dịch</span>
+                    </button>
+                  )}
+                  
+                  {/* Hiển thị trạng thái giao dịch nếu đã được xử lý */}
+                  {selectedNotification.trang_thai && 
+                   selectedNotification.trang_thai !== 'cho_xac_nhan' && (
+                    <div className="w-full text-center py-2">
+                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                        selectedNotification.trang_thai === 'hoan_thanh' 
+                          ? 'bg-green-100 text-green-800' 
+                          : selectedNotification.trang_thai === 'da_huy'
+                          ? 'bg-red-100 text-red-800'
+                          : 'bg-gray-100 text-gray-800'
+                      }`}>
+                        {selectedNotification.trang_thai === 'hoan_thanh' ? 
+                          (selectedNotification.id_loai_giao_dich === 4 || selectedNotification.id_loai_giao_dich === 5) 
+                            ? '✅ Giao dịch đã hoàn thành' 
+                            : '✅ Đã xác nhận' :
+                         selectedNotification.trang_thai === 'da_huy' ? '❌ Đã hủy' :
+                         selectedNotification.trang_thai}
+                      </span>
+                    </div>
+                  )}
+                  
+                  {/* Nếu không có nút nào được hiển thị và giao dịch chưa xử lý, hiển thị thông báo */}
+                  {selectedNotification.trang_thai === 'cho_xac_nhan' &&
+                   !((selectedNotification.id_loai_giao_dich === 1 && selectedNotification.ten_nguoi_nhan === user.ho_ten) ||
+                     (selectedNotification.ten_nguoi_gui === user.ho_ten || selectedNotification.ten_nguoi_nhan === user.ho_ten || user.la_admin === 1 || user.la_admin === true)) && (
+                    <div className="w-full text-center text-sm text-gray-500 py-2">
+                      Bạn không có quyền thực hiện hành động này
+                    </div>
+                  )}
                 </div>
               )}
             </div>

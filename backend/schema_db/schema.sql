@@ -7,8 +7,8 @@ CREATE TABLE nguoi_dung (
     ho_ten VARCHAR(100) NOT NULL,
     so_dien_thoai VARCHAR(20),
     dia_chi TEXT,
-    so_du DECIMAL(12,2) DEFAULT 0,
-    diem INT DEFAULT 0,
+    so_du DECIMAL(12,2) DEFAULT 0 COMMENT 'Số dư tài khoản (có thể âm - nợ, dương - có)',
+    diem INT DEFAULT 0 COMMENT 'Số điểm tích lũy (có thể âm - nợ điểm, dương - có)',
     la_admin BOOLEAN DEFAULT FALSE, -- Chỉ có 2 quyền: TRUE là admin, FALSE là member
     ngay_tao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     ngay_cap_nhat TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP

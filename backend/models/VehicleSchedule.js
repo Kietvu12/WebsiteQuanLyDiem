@@ -6,12 +6,13 @@ class VehicleSchedule {
     try {
       const [rows] = await pool.execute(
         `SELECT lx.*, lxe.ten_loai as ten_loai_xe, lxe.so_cho, lt.ten_loai as ten_loai_tuyen, lt.la_khu_hoi,
-                nd.ho_ten as ten_nguoi_tao, n.ten_nhom
+                nd.ho_ten as ten_nguoi_tao, n.ten_nhom, nn.ho_ten as ten_nguoi_nhan
          FROM lich_xe lx
          INNER JOIN loai_xe lxe ON lx.id_loai_xe = lxe.id_loai_xe
          INNER JOIN loai_tuyen lt ON lx.id_loai_tuyen = lt.id_loai_tuyen
          INNER JOIN nguoi_dung nd ON lx.id_nguoi_tao = nd.id_nguoi_dung
          INNER JOIN nhom n ON lx.id_nhom = n.id_nhom
+         LEFT JOIN nguoi_dung nn ON lx.id_nguoi_nhan = nn.id_nguoi_dung
          ORDER BY lx.ngay_tao DESC`
       );
       return rows;
@@ -25,12 +26,13 @@ class VehicleSchedule {
     try {
       const [rows] = await pool.execute(
         `SELECT lx.*, lxe.ten_loai as ten_loai_xe, lxe.so_cho, lt.ten_loai as ten_loai_tuyen, lt.la_khu_hoi,
-                nd.ho_ten as ten_nguoi_tao, n.ten_nhom
+                nd.ho_ten as ten_nguoi_tao, n.ten_nhom, nn.ho_ten as ten_nguoi_nhan
          FROM lich_xe lx
          INNER JOIN loai_xe lxe ON lx.id_loai_xe = lxe.id_loai_xe
          INNER JOIN loai_tuyen lt ON lx.id_loai_tuyen = lt.id_loai_tuyen
          INNER JOIN nguoi_dung nd ON lx.id_nguoi_tao = nd.id_nguoi_dung
          INNER JOIN nhom n ON lx.id_nhom = n.id_nhom
+         LEFT JOIN nguoi_dung nn ON lx.id_nguoi_nhan = nn.id_nguoi_dung
          WHERE lx.id_lich_xe = ?`,
         [id]
       );
@@ -45,12 +47,13 @@ class VehicleSchedule {
     try {
       const [rows] = await pool.execute(
         `SELECT lx.*, lxe.ten_loai as ten_loai_xe, lxe.so_cho, lt.ten_loai as ten_loai_tuyen, lt.la_khu_hoi,
-                nd.ho_ten as ten_nguoi_tao, n.ten_nhom
+                nd.ho_ten as ten_nguoi_tao, n.ten_nhom, nn.ho_ten as ten_nguoi_nhan
          FROM lich_xe lx
          INNER JOIN loai_xe lxe ON lx.id_loai_xe = lxe.id_loai_xe
          INNER JOIN loai_tuyen lt ON lx.id_loai_tuyen = lt.id_loai_tuyen
          INNER JOIN nguoi_dung nd ON lx.id_nguoi_tao = nd.id_nguoi_dung
          INNER JOIN nhom n ON lx.id_nhom = n.id_nhom
+         LEFT JOIN nguoi_dung nn ON lx.id_nguoi_nhan = nn.id_nguoi_dung
          WHERE lx.id_nhom = ?
          ORDER BY lx.ngay_tao DESC`,
         [groupId]
@@ -66,12 +69,13 @@ class VehicleSchedule {
     try {
       const [rows] = await pool.execute(
         `SELECT lx.*, lxe.ten_loai as ten_loai_xe, lxe.so_cho, lt.ten_loai as ten_loai_tuyen, lt.la_khu_hoi,
-                nd.ho_ten as ten_nguoi_tao, n.ten_nhom
+                nd.ho_ten as ten_nguoi_tao, n.ten_nhom, nn.ho_ten as ten_nguoi_nhan
          FROM lich_xe lx
          INNER JOIN loai_xe lxe ON lx.id_loai_xe = lxe.id_loai_xe
          INNER JOIN loai_tuyen lt ON lx.id_loai_tuyen = lt.id_loai_tuyen
          INNER JOIN nguoi_dung nd ON lx.id_nguoi_tao = nd.id_nguoi_dung
          INNER JOIN nhom n ON lx.id_nhom = n.id_nhom
+         LEFT JOIN nguoi_dung nn ON lx.id_nguoi_nhan = nn.id_nguoi_dung
          WHERE lx.id_nguoi_tao = ?
          ORDER BY lx.ngay_tao DESC`,
         [userId]
@@ -82,17 +86,40 @@ class VehicleSchedule {
     }
   }
 
-  // Lấy lịch xe theo trạng thái
-  static async getByStatus(status) {
+  // Lấy lịch xe theo người nhận
+  static async getByRecipient(userId) {
     try {
       const [rows] = await pool.execute(
         `SELECT lx.*, lxe.ten_loai as ten_loai_xe, lxe.so_cho, lt.ten_loai as ten_loai_tuyen, lt.la_khu_hoi,
-                nd.ho_ten as ten_nguoi_tao, n.ten_nhom
+                nd.ho_ten as ten_nguoi_tao, n.ten_nhom, nn.ho_ten as ten_nguoi_nhan
          FROM lich_xe lx
          INNER JOIN loai_xe lxe ON lx.id_loai_xe = lxe.id_loai_xe
          INNER JOIN loai_tuyen lt ON lx.id_loai_tuyen = lt.id_loai_tuyen
          INNER JOIN nguoi_dung nd ON lx.id_nguoi_tao = nd.id_nguoi_dung
          INNER JOIN nhom n ON lx.id_nhom = n.id_nhom
+         LEFT JOIN nguoi_dung nn ON lx.id_nguoi_nhan = nn.id_nguoi_dung
+         WHERE lx.id_nguoi_nhan = ?
+         ORDER BY lx.ngay_tao DESC`,
+        [userId]
+      );
+      return rows;
+    } catch (error) {
+      throw new Error(`Lỗi lấy lịch xe theo người nhận: ${error.message}`);
+    }
+  }
+
+  // Lấy lịch xe theo trạng thái
+  static async getByStatus(status) {
+    try {
+      const [rows] = await pool.execute(
+        `SELECT lx.*, lxe.ten_loai as ten_loai_xe, lxe.so_cho, lt.ten_loai as ten_loai_tuyen, lt.la_khu_hoi,
+                nd.ho_ten as ten_nguoi_tao, n.ten_nhom, nn.ho_ten as ten_nguoi_nhan
+         FROM lich_xe lx
+         INNER JOIN loai_xe lxe ON lx.id_loai_xe = lxe.id_loai_xe
+         INNER JOIN loai_tuyen lt ON lx.id_loai_tuyen = lt.id_loai_tuyen
+         INNER JOIN nguoi_dung nd ON lx.id_nguoi_tao = nd.id_nguoi_dung
+         INNER JOIN nhom n ON lx.id_nhom = n.id_nhom
+         LEFT JOIN nguoi_dung nn ON lx.id_nguoi_nhan = nn.id_nguoi_nhan
          WHERE lx.trang_thai = ?
          ORDER BY lx.ngay_tao DESC`,
         [status]
@@ -114,15 +141,16 @@ class VehicleSchedule {
         thoi_gian_bat_dau_tra,
         thoi_gian_ket_thuc_tra,
         id_nguoi_tao,
-        id_nhom
+        id_nhom,
+        id_nguoi_nhan
       } = scheduleData;
 
       const [result] = await pool.execute(
         `INSERT INTO lich_xe (id_loai_xe, id_loai_tuyen, thoi_gian_bat_dau_don, thoi_gian_ket_thuc_don, 
-                              thoi_gian_bat_dau_tra, thoi_gian_ket_thuc_tra, id_nguoi_tao, id_nhom) 
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+                              thoi_gian_bat_dau_tra, thoi_gian_ket_thuc_tra, id_nguoi_tao, id_nhom, id_nguoi_nhan) 
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [id_loai_xe, id_loai_tuyen, thoi_gian_bat_dau_don, thoi_gian_ket_thuc_don, 
-         thoi_gian_bat_dau_tra, thoi_gian_ket_thuc_tra, id_nguoi_tao, id_nhom]
+         thoi_gian_bat_dau_tra, thoi_gian_ket_thuc_tra, id_nguoi_tao, id_nhom, id_nguoi_nhan]
       );
       return result.insertId;
     } catch (error) {
@@ -140,16 +168,17 @@ class VehicleSchedule {
         thoi_gian_ket_thuc_don,
         thoi_gian_bat_dau_tra,
         thoi_gian_ket_thuc_tra,
-        id_nhom
+        id_nhom,
+        id_nguoi_nhan
       } = scheduleData;
 
       const [result] = await pool.execute(
         `UPDATE lich_xe SET 
          id_loai_xe = ?, id_loai_tuyen = ?, thoi_gian_bat_dau_don = ?, thoi_gian_ket_thuc_don = ?,
-         thoi_gian_bat_dau_tra = ?, thoi_gian_ket_thuc_tra = ?, id_nhom = ?
+         thoi_gian_bat_dau_tra = ?, thoi_gian_ket_thuc_tra = ?, id_nhom = ?, id_nguoi_nhan = ?
          WHERE id_lich_xe = ?`,
         [id_loai_xe, id_loai_tuyen, thoi_gian_bat_dau_don, thoi_gian_ket_thuc_don,
-         thoi_gian_bat_dau_tra, thoi_gian_ket_thuc_tra, id_nhom, id]
+         thoi_gian_bat_dau_tra, thoi_gian_ket_thuc_tra, id_nhom, id_nguoi_nhan, id]
       );
       return result.affectedRows > 0;
     } catch (error) {
@@ -188,12 +217,13 @@ class VehicleSchedule {
     try {
       const [rows] = await pool.execute(
         `SELECT lx.*, lxe.ten_loai as ten_loai_xe, lxe.so_cho, lt.ten_loai as ten_loai_tuyen, lt.la_khu_hoi,
-                nd.ho_ten as ten_nguoi_tao, n.ten_nhom
+                nd.ho_ten as ten_nguoi_tao, n.ten_nhom, nn.ho_ten as ten_nguoi_nhan
          FROM lich_xe lx
          INNER JOIN loai_xe lxe ON lx.id_loai_xe = lxe.id_loai_xe
          INNER JOIN loai_tuyen lt ON lx.id_loai_tuyen = lt.id_loai_tuyen
          INNER JOIN nguoi_dung nd ON lx.id_nguoi_tao = nd.id_nguoi_dung
          INNER JOIN nhom n ON lx.id_nhom = n.id_nhom
+         LEFT JOIN nguoi_dung nn ON lx.id_nguoi_nhan = nn.id_nguoi_dung
          WHERE DATE(lx.ngay_tao) = ?
          ORDER BY lx.thoi_gian_bat_dau_don ASC`,
         [date]
