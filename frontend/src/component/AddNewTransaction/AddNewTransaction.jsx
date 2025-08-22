@@ -10,12 +10,14 @@ import {
   LoadingOutlined,
   CarOutlined,
   EnvironmentOutlined,
-  ClockCircleOutlined
+  ClockCircleOutlined,
+  CalculatorOutlined
 } from '@ant-design/icons'
 import { useAuth } from '../../contexts/AuthContext'
 import { groupService } from '../../services/groupService'
 import { transactionService } from '../../services/transactionService'
 import { vehicleScheduleService } from '../../services/vehicleScheduleService'
+import { calculateSchedulePoints, getPointCalculationDetails } from '../../services/pointCalculationService'
 
 const AddNewTransaction = () => {
   const { user } = useAuth()
@@ -26,7 +28,7 @@ const AddNewTransaction = () => {
   
   // Form data
   const [formData, setFormData] = useState({
-    id_loai_giao_dich: 'giao_lich', // 1: giao_lich, 4: san_cho
+    id_loai_giao_dich: 1, // 1: giao_lich, 4: san_cho
     id_nguoi_nhan: '',
     id_nhom: '',
     so_tien: '',
@@ -44,6 +46,14 @@ const AddNewTransaction = () => {
     thoi_gian_ket_thuc_tra: ''
   })
 
+  // Point calculation state
+  const [pointCalculation, setPointCalculation] = useState({
+    calculatedPoints: null,
+    calculationDetails: null,
+    calculationStatus: 'idle', // 'idle', 'calculating', 'calculated', 'error'
+    errorMessage: ''
+  })
+
   // Data từ API
   const [groups, setGroups] = useState([])
   const [groupMembers, setGroupMembers] = useState([])
@@ -55,18 +65,14 @@ const AddNewTransaction = () => {
 
   // Transaction types
   const transactionTypes = [
-    { value: 'giao_lich', label: 'Giao lịch', color: 'bg-red-50 text-red-600 border-red-100', id: 1 },
-    { value: 'san_cho', label: 'San cho', color: 'bg-blue-50 text-blue-600 border-blue-100', id: 4 }
+    { value: 1, label: 'Giao lịch', color: 'bg-red-50 text-red-600 border-red-100' },
+    { value: 4, label: 'San cho', color: 'bg-blue-50 text-blue-600 border-blue-100' }
   ]
 
   // Load groups khi component mount
   useEffect(() => {
     if (isOpen && user) {
-      console.log('Modal opened, loading data...') // Debug log
-      console.log('Current formData:', formData) // Debug log
-      console.log('formData.id_loai_giao_dich:', formData.id_loai_giao_dich) // Debug log
-      console.log('formData.id_loai_giao_dich === "giao_lich":', formData.id_loai_giao_dich === 'giao_lich') // Debug log
-      console.log('formData.id_loai_giao_dich type:', typeof formData.id_loai_giao_dich) // Debug log
+      console.log('Modal opened, loading data...')
       loadGroups()
       loadVehicleData()
     }
@@ -74,10 +80,39 @@ const AddNewTransaction = () => {
 
   // Theo dõi thay đổi của formData.id_loai_giao_dich
   useEffect(() => {
-    console.log('formData.id_loai_giao_dich changed to:', formData.id_loai_giao_dich)
-    console.log('Type:', typeof formData.id_loai_giao_dich)
-    console.log('Should show vehicle form:', formData.id_loai_giao_dich === 'giao_lich' || formData.id_loai_giao_dich === 1)
+    console.log('Transaction type changed to:', formData.id_loai_giao_dich)
+    
+    // Reset point calculation when transaction type changes
+    if (formData.id_loai_giao_dich !== 1) {
+      setPointCalculation({
+        calculatedPoints: null,
+        calculationDetails: null,
+        calculationStatus: 'idle',
+        errorMessage: ''
+      })
+      // Reset diem field
+      setFormData(prev => ({ ...prev, diem: '' }))
+    }
   }, [formData.id_loai_giao_dich])
+
+  // Auto-calculate points when vehicle schedule data changes (for Giao lịch)
+  useEffect(() => {
+    if (formData.id_loai_giao_dich === 1 && formData.so_tien && scheduleData.id_loai_xe && scheduleData.id_loai_tuyen) {
+      calculatePointsForSchedule()
+    }
+  }, [formData.so_tien, scheduleData.id_loai_xe, scheduleData.id_loai_tuyen, scheduleData.thoi_gian_bat_dau_don, scheduleData.thoi_gian_ket_thuc_don, scheduleData.thoi_gian_bat_dau_tra, scheduleData.thoi_gian_ket_thuc_tra])
+
+  // Clear point calculation when modal is closed
+  useEffect(() => {
+    if (!isOpen) {
+      setPointCalculation({
+        calculatedPoints: null,
+        calculationDetails: null,
+        calculationStatus: 'idle',
+        errorMessage: ''
+      })
+    }
+  }, [isOpen])
 
   // Load groups
   const loadGroups = async () => {
@@ -250,7 +285,7 @@ const AddNewTransaction = () => {
       }
 
       // Validate lịch xe nếu là giao lịch
-      if (formData.id_loai_giao_dich === 'giao_lich') {
+      if (formData.id_loai_giao_dich === 1) {
         console.log('Validating vehicle schedule data...')
         if (!scheduleData.id_loai_xe) {
           throw new Error('Vui lòng chọn loại xe')
@@ -269,7 +304,7 @@ const AddNewTransaction = () => {
       let scheduleId = null
 
       // Tạo lịch xe trước nếu là giao lịch
-      if (formData.id_loai_giao_dich === 'giao_lich') {
+      if (formData.id_loai_giao_dich === 1) {
         console.log('Creating vehicle schedule...')
         const token = localStorage.getItem('authToken')
         const scheduleResponse = await vehicleScheduleService.createSchedule(token, {
@@ -289,7 +324,7 @@ const AddNewTransaction = () => {
 
       // Chuẩn bị data gửi API transaction
       const transactionData = {
-        id_loai_giao_dich: formData.id_loai_giao_dich === 'giao_lich' ? 1 : 4,
+        id_loai_giao_dich: formData.id_loai_giao_dich,
         id_nguoi_nhan: parseInt(formData.id_nguoi_nhan),
         id_nhom: parseInt(formData.id_nhom),
         id_lich_xe: scheduleId, // ID lịch xe nếu có
@@ -307,9 +342,9 @@ const AddNewTransaction = () => {
       if (response.success) {
         console.log('Transaction created successfully!')
         setSuccess('Tạo giao dịch thành công!')
-    // Reset form
-    setFormData({
-          id_loai_giao_dich: 'giao_lich', // Đảm bảo giá trị mặc định là string
+        // Reset form
+        setFormData({
+          id_loai_giao_dich: 1, // Đảm bảo giá trị mặc định là number
           id_nguoi_nhan: '',
           id_nhom: '',
           so_tien: '',
@@ -325,6 +360,14 @@ const AddNewTransaction = () => {
           thoi_gian_ket_thuc_tra: ''
         })
         setGroupMembers([])
+        
+        // Reset point calculation state
+        setPointCalculation({
+          calculatedPoints: null,
+          calculationDetails: null,
+          calculationStatus: 'idle',
+          errorMessage: ''
+        })
         
         // Đóng modal sau 2 giây
         setTimeout(() => {
@@ -345,7 +388,7 @@ const AddNewTransaction = () => {
     setSuccess('')
     // Reset form
     setFormData({
-      id_loai_giao_dich: 'giao_lich', // Đảm bảo giá trị mặc định là string
+      id_loai_giao_dich: 1, // Đảm bảo giá trị mặc định là number
       id_nguoi_nhan: '',
       id_nhom: '',
       so_tien: '',
@@ -360,7 +403,87 @@ const AddNewTransaction = () => {
       thoi_gian_bat_dau_tra: '',
       thoi_gian_ket_thuc_tra: ''
     })
-    setGroupMembers([])
+            setGroupMembers([])
+        
+        // Reset point calculation state
+        setPointCalculation({
+          calculatedPoints: null,
+          calculationDetails: null,
+          calculationStatus: 'idle',
+          errorMessage: ''
+        })
+  }
+
+  // Calculate points based on vehicle schedule and amount
+  const calculatePointsForSchedule = () => {
+    if (!formData.so_tien || !scheduleData.id_loai_xe || !scheduleData.id_loai_tuyen) {
+      return
+    }
+
+    setPointCalculation(prev => ({ ...prev, calculationStatus: 'calculating' }))
+
+    try {
+      // Prepare schedule data for calculation
+      const scheduleDataForCalculation = {
+        id_loai_xe: parseInt(scheduleData.id_loai_xe),
+        id_loai_tuyen: parseInt(scheduleData.id_loai_tuyen),
+        thoi_gian_bat_dau_don: scheduleData.thoi_gian_bat_dau_don,
+        thoi_gian_ket_thuc_don: scheduleData.thoi_gian_ket_thuc_don,
+        thoi_gian_bat_dau_tra: scheduleData.thoi_gian_bat_dau_tra,
+        thoi_gian_ket_thuc_tra: scheduleData.thoi_gian_ket_thuc_tra,
+        so_tien: parseFloat(formData.so_tien)
+      }
+
+      console.log('Calculating points for schedule:', scheduleDataForCalculation)
+
+      // Calculate points using the service
+      const calculatedPoints = calculateSchedulePoints(scheduleDataForCalculation)
+      const calculationDetails = getPointCalculationDetails(scheduleDataForCalculation)
+
+      console.log('Points calculated:', calculatedPoints)
+      console.log('Calculation details:', calculationDetails)
+
+      if (calculatedPoints !== 'manual' && calculatedPoints !== null) {
+        // Auto-update the diem field
+        setFormData(prev => ({ ...prev, diem: calculatedPoints.toString() }))
+        
+        setPointCalculation({
+          calculatedPoints: calculatedPoints,
+          calculationDetails: calculationDetails,
+          calculationStatus: 'calculated',
+          errorMessage: ''
+        })
+      } else if (calculatedPoints === 'manual') {
+        setPointCalculation({
+          calculatedPoints: null,
+          calculationDetails: calculationDetails,
+          calculationStatus: 'manual',
+          errorMessage: 'Cần tính điểm thủ công'
+        })
+        // Clear diem field for manual input
+        setFormData(prev => ({ ...prev, diem: '' }))
+      } else {
+        setPointCalculation({
+          calculatedPoints: null,
+          calculationDetails: null,
+          calculationStatus: 'error',
+          errorMessage: 'Không thể tính điểm tự động'
+        })
+      }
+    } catch (error) {
+      console.error('Error calculating points:', error)
+      setPointCalculation({
+        calculatedPoints: null,
+        calculationDetails: null,
+        calculationStatus: 'error',
+        errorMessage: `Lỗi tính điểm: ${error.message}`
+      })
+    }
+  }
+
+  // Manual point calculation trigger
+  const handleManualPointCalculation = () => {
+    calculatePointsForSchedule()
   }
 
   return (
@@ -427,9 +550,8 @@ const AddNewTransaction = () => {
               {/* Debug Info */}
               <div className="p-3 bg-yellow-100 rounded-lg text-xs text-yellow-800">
                 <strong>Debug Info:</strong><br />
-                formData.id_loai_giao_dich: "{formData.id_loai_giao_dich}"<br />
-                Type: {typeof formData.id_loai_giao_dich}<br />
-                Should show vehicle form: {formData.id_loai_giao_dich === 'giao_lich' ? 'YES' : 'NO'}<br />
+                Transaction Type: {formData.id_loai_giao_dich} ({typeof formData.id_loai_giao_dich})<br />
+                Should show vehicle form: {formData.id_loai_giao_dich === 1 ? 'YES' : 'NO'}<br />
                 Current user: {user?.ho_ten} (Admin: {user?.la_admin ? 'Yes' : 'No'})
               </div>
 
@@ -527,7 +649,7 @@ const AddNewTransaction = () => {
               </div>
 
               {/* Vehicle Schedule Section - Chỉ hiển thị khi chọn Giao lịch */}
-              {(formData.id_loai_giao_dich === 'giao_lich' || formData.id_loai_giao_dich === 1) && (
+              {(formData.id_loai_giao_dich === 1) && (
                 <div className="border border-gray-200 rounded-xl p-6 bg-gray-50">
                   <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
                     <CarOutlined className="mr-2 text-blue-500" />
@@ -537,19 +659,23 @@ const AddNewTransaction = () => {
                         (Admin - Có thể tạo lịch xe cho mọi nhóm)
                       </span>
                     )}
+                    {pointCalculation.calculationStatus === 'calculated' && (
+                      <span className="ml-2 text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">
+                        ✓ Điểm: {pointCalculation.calculatedPoints}
+                      </span>
+                    )}
+                    {pointCalculation.calculationStatus === 'manual' && (
+                      <span className="ml-2 text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full">
+                        ⚠ Cần tính thủ công
+                      </span>
+                    )}
                   </h3>
                   
                   {/* Debug info */}
                   <div className="mb-4 p-2 bg-blue-100 rounded text-xs text-blue-800">
-                    Debug: formData.id_loai_giao_dich = "{formData.id_loai_giao_dich}"
+                    Debug: Transaction Type = {formData.id_loai_giao_dich} (Type: {typeof formData.id_loai_giao_dich})
                     <br />
-                    Type: {typeof formData.id_loai_giao_dich}
-                    <br />
-                    Comparison: formData.id_loai_giao_dich === 'giao_lich' = {formData.id_loai_giao_dich === 'giao_lich' ? 'true' : 'false'}
-                    <br />
-                    Comparison: formData.id_loai_giao_dich === 1 = {formData.id_loai_giao_dich === 1 ? 'true' : 'false'}
-                    <br />
-                    Should show: {(formData.id_loai_giao_dich === 'giao_lich' || formData.id_loai_giao_dich === 1) ? 'YES' : 'NO'}
+                    Should show: {formData.id_loai_giao_dich === 1 ? 'YES' : 'NO'}
                   </div>
                   
                   <div className="grid grid-cols-2 gap-4">
@@ -693,12 +819,28 @@ const AddNewTransaction = () => {
                   />
                   <p className="text-xs text-gray-500 mt-1">
                     Số âm: người nhận trả tiền, Số dương: người nhận nhận tiền
+                    {formData.id_loai_giao_dich === 1 && (
+                      <span className="block mt-1 text-blue-600">
+                        💡 Điểm sẽ được tính tự động khi chọn đầy đủ thông tin lịch xe
+                      </span>
+                    )}
                   </p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     <CalendarOutlined className="mr-2 text-gray-400" />
                     Số điểm
+                    {formData.id_loai_giao_dich === 1 && (
+                      <button
+                        type="button"
+                        onClick={handleManualPointCalculation}
+                        className="ml-2 inline-flex items-center px-2 py-1 text-xs bg-blue-100 text-blue-600 rounded hover:bg-blue-200 transition-colors"
+                        title="Tính điểm tự động"
+                      >
+                        <CalculatorOutlined className="mr-1" />
+                        Tính tự động
+                      </button>
+                    )}
                   </label>
                   <input
                     type="number"
@@ -711,6 +853,53 @@ const AddNewTransaction = () => {
                   <p className="text-xs text-gray-500 mt-1">
                     Số âm: người nhận trả điểm, Số dương: người nhận nhận điểm
                   </p>
+                  
+                  {/* Point Calculation Status Display */}
+                  {formData.id_loai_giao_dich === 1 && pointCalculation.calculationStatus !== 'idle' && (
+                    <div className="mt-2 p-2 rounded-lg text-xs">
+                      {pointCalculation.calculationStatus === 'calculating' && (
+                        <div className="bg-blue-50 text-blue-600 flex items-center">
+                          <LoadingOutlined className="animate-spin mr-1" />
+                          Đang tính điểm...
+                        </div>
+                      )}
+                      
+                      {pointCalculation.calculationStatus === 'calculated' && (
+                        <div className="bg-green-50 text-green-600">
+                          <div className="font-medium">✓ Điểm đã được tính tự động: {pointCalculation.calculatedPoints}</div>
+                          {pointCalculation.calculationDetails && (
+                            <div className="mt-1 text-xs opacity-75">
+                              <span className="font-medium">Chi tiết:</span> {pointCalculation.calculationDetails.vehicleType} • {pointCalculation.calculationDetails.routeType} • {pointCalculation.calculationDetails.calculationMethod}
+                              {pointCalculation.calculationDetails.price && (
+                                <span> • Giá: {pointCalculation.calculationDetails.price.toLocaleString('vi-VN')} VNĐ</span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      
+                      {pointCalculation.calculationStatus === 'manual' && (
+                        <div className="bg-yellow-50 text-yellow-600">
+                          <div className="font-medium">⚠ Cần tính điểm thủ công</div>
+                          {pointCalculation.calculationDetails && (
+                            <div className="mt-1 text-xs opacity-75">
+                              <span className="font-medium">Lý do:</span> {pointCalculation.calculationDetails.vehicleType} • {pointCalculation.calculationDetails.routeType} • {pointCalculation.calculationDetails.calculationMethod}
+                              {pointCalculation.calculationDetails.price && (
+                                <span> • Giá: {pointCalculation.calculationDetails.price.toLocaleString('vi-VN')} VNĐ</span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      
+                      {pointCalculation.calculationStatus === 'error' && (
+                        <div className="bg-red-50 text-red-600">
+                          <div className="font-medium">✗ Lỗi tính điểm</div>
+                          <div className="text-xs opacity-75">{pointCalculation.errorMessage}</div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
 

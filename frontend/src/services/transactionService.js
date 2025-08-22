@@ -124,6 +124,28 @@ export const transactionService = {
     }
   },
 
+  // Hủy lịch xe - hoàn tiền và điểm cho cả 2 bên
+  async cancelVehicleSchedule(token, scheduleId) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/transactions/schedule/${scheduleId}/cancel`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        }
+      })
+
+      const data = await response.json()
+      if (!response.ok) {
+        throw new Error(data.message || 'Không thể hủy lịch xe')
+      }
+      return data
+    } catch (error) {
+      console.error('transactionService - cancelVehicleSchedule error:', error)
+      throw error
+    }
+  },
+
   // Lấy giao dịch theo người dùng
   async getUserTransactions(token, userId) {
     try {

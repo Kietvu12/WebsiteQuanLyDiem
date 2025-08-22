@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { 
   TransactionOutlined,
   UserOutlined,
@@ -14,11 +14,15 @@ import {
   CloseCircleOutlined,
   CarOutlined,
   EnvironmentOutlined,
-  ClockCircleOutlined
+  ClockCircleOutlined,
+  SearchOutlined,
+  FilterOutlined,
+  ClearOutlined
 } from '@ant-design/icons'
 import { useAuth } from '../../contexts/AuthContext'
 import { transactionService } from '../../services/transactionService'
 import { formatTime, formatDate, formatMoney } from '../../utils/dateUtils'
+import PointCalculationDisplay from '../../components/PointCalculationDisplay'
 
 const HomePage = () => {
   const { user } = useAuth()
@@ -26,6 +30,19 @@ const HomePage = () => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [processingId, setProcessingId] = useState(null)
+  
+  // Filter states
+  const [filters, setFilters] = useState({
+    searchText: '',
+    selectedGroup: '',
+    selectedStatus: '',
+    dateRange: null,
+    selectedUser: ''
+  })
+  
+  const [showFilters, setShowFilters] = useState(false)
+  const [suggestions, setSuggestions] = useState([])
+  const [showSuggestions, setShowSuggestions] = useState(false)
 
   // Load transactions khi component mount
   useEffect(() => {
@@ -43,11 +60,6 @@ const HomePage = () => {
     console.log('🔍 user.la_admin:', user.la_admin, 'type:', typeof user.la_admin);
     console.log('🔍 user.id_nguoi_dung:', user.id_nguoi_dung, 'type:', typeof user.id_nguoi_dung);
     console.log('🔍 Is admin check:', user.la_admin === 1 || user.la_admin === true);
-    console.log('🔍 user.la_admin === 1:', user.la_admin === 1);
-    console.log('🔍 user.la_admin === true:', user.la_admin === true);
-    console.log('🔍 user.la_admin == 1:', user.la_admin == 1);
-    console.log('🔍 user.la_admin == true:', user.la_admin == true);
-    console.log('🔍 !!user.la_admin:', !!user.la_admin);
     
     setLoading(true)
     try {
@@ -67,7 +79,90 @@ const HomePage = () => {
       }
       
       if (response.success) {
-        setTransactions(response.data || [])
+        let filteredTransactions = response.data || []
+        
+        // Nếu không phải admin, lọc giao dịch chỉ hiển thị những giao dịch liên quan đến user
+        if (!(user.la_admin === 1 || user.la_admin === true)) {
+          console.log('🔍 === FILTERING TRANSACTIONS FOR USER ===');
+          console.log('🔍 User ID:', user.id_nguoi_dung);
+          console.log('🔍 Total transactions before filtering:', response.data.length);
+          console.log('🔍 User ID type:', typeof user.id_nguoi_dung);
+          
+          // Log từng giao dịch để debug
+          response.data.forEach((transaction, index) => {
+            const userIsSender = transaction.id_nguoi_gui === user.id_nguoi_dung;
+            const userIsReceiver = transaction.id_nguoi_nhan === user.id_nguoi_dung;
+            
+            // Kiểm tra từng điều kiện riêng biệt
+            const condition1 = transaction.id_loai_giao_dich === 1 && userIsSender;
+            const condition2 = transaction.id_loai_giao_dich === 2 && userIsReceiver;
+            const condition3 = transaction.id_loai_giao_dich === 4 && userIsSender;
+            const condition4 = transaction.id_loai_giao_dich === 5 && userIsReceiver;
+            
+            const shouldShow = condition1 || condition2 || condition3 || condition4;
+            
+            console.log(`🔍 Transaction ${index + 1}:`, {
+              id: transaction.id_giao_dich,
+              type: transaction.id_loai_giao_dich,
+              typeName: getTransactionLabel(transaction.id_loai_giao_dich),
+              sender: transaction.id_nguoi_gui,
+              receiver: transaction.id_nguoi_nhan,
+              userIsSender: userIsSender,
+              userIsReceiver: userIsReceiver,
+              condition1: condition1,
+              condition2: condition2,
+              condition3: condition3,
+              condition4: condition4,
+              shouldShow: shouldShow,
+              userID: user.id_nguoi_dung,
+              senderID: transaction.id_nguoi_gui,
+              receiverID: transaction.id_nguoi_nhan
+            });
+          });
+          
+          filteredTransactions = response.data.filter(transaction => {
+            // Chỉ hiển thị các giao dịch liên quan đến user:
+            // 1. Giao lịch (id=1): user là người giao lịch
+            // 2. Nhận lịch (id=2): user là người nhận lịch  
+            // 3. San cho (id=4): user là người san cho
+            // 4. Nhận san (id=5): user là người nhận san
+            const shouldShow = (
+              (transaction.id_loai_giao_dich === 1 && transaction.id_nguoi_gui === user.id_nguoi_dung) || // Giao lịch - user là người giao
+              (transaction.id_loai_giao_dich === 2 && transaction.id_nguoi_nhan === user.id_nguoi_dung) || // Nhận lịch - user là người nhận
+              (transaction.id_loai_giao_dich === 4 && transaction.id_nguoi_gui === user.id_nguoi_dung) || // San cho - user là người san
+              (transaction.id_loai_giao_dich === 5 && transaction.id_nguoi_nhan === user.id_nguoi_dung)    // Nhận san - user là người nhận
+            );
+            
+            return shouldShow;
+          });
+          
+          console.log('🔍 Filtered transactions for user:', filteredTransactions.length, 'out of', response.data.length);
+          
+          // Log giao dịch đã được lọc
+          filteredTransactions.forEach((transaction, index) => {
+            let role = '';
+            if (transaction.id_loai_giao_dich === 1 && transaction.id_nguoi_gui === user.id_nguoi_dung) role = 'Người giao lịch';
+            else if (transaction.id_loai_giao_dich === 2 && transaction.id_nguoi_nhan === user.id_nguoi_dung) role = 'Người nhận lịch';
+            else if (transaction.id_loai_giao_dich === 4 && transaction.id_nguoi_gui === user.id_nguoi_dung) role = 'Người san cho';
+            else if (transaction.id_loai_giao_dich === 5 && transaction.id_nguoi_nhan === user.id_nguoi_dung) role = 'Người nhận san';
+            
+            console.log(`🔍 Filtered Transaction ${index + 1}:`, {
+              id: transaction.id_giao_dich,
+              type: transaction.id_loai_giao_dich,
+              role: role,
+              content: transaction.noi_dung
+            });
+          });
+        }
+        
+        // Tạm thời: nếu không có giao dịch nào sau khi lọc, hiển thị tất cả để debug
+        if (filteredTransactions.length === 0 && response.data.length > 0) {
+          console.log('⚠️ WARNING: Không có giao dịch nào sau khi lọc!');
+          console.log('⚠️ Hiển thị tất cả giao dịch để debug...');
+          setTransactions(response.data);
+        } else {
+          setTransactions(filteredTransactions);
+        }
       }
     } catch (error) {
       console.error('Error loading transactions:', error)
@@ -205,7 +300,111 @@ const HomePage = () => {
     return 'none';
   }
 
+  // Filter logic
+  const filteredTransactions = useMemo(() => {
+    let filtered = transactions;
 
+    // Filter by search text (tên người gửi/nhận)
+    if (filters.searchText) {
+      filtered = filtered.filter(transaction => 
+        (transaction.ten_nguoi_gui && transaction.ten_nguoi_gui.toLowerCase().includes(filters.searchText.toLowerCase())) ||
+        (transaction.ten_nguoi_nhan && transaction.ten_nguoi_nhan.toLowerCase().includes(filters.searchText.toLowerCase()))
+      );
+    }
+
+    // Filter by group
+    if (filters.selectedGroup) {
+      filtered = filtered.filter(transaction => 
+        transaction.ten_nhom === filters.selectedGroup
+      );
+    }
+
+    // Filter by status
+    if (filters.selectedStatus) {
+      filtered = filtered.filter(transaction => 
+        transaction.trang_thai === filters.selectedStatus
+      );
+    }
+
+    // Filter by date range
+    if (filters.dateRange && filters.dateRange.length === 2) {
+      const startDate = new Date(filters.dateRange[0]);
+      const endDate = new Date(filters.dateRange[1]);
+      endDate.setHours(23, 59, 59, 999); // End of day
+      
+      filtered = filtered.filter(transaction => {
+        const transactionDate = new Date(transaction.ngay_tao);
+        return transactionDate >= startDate && transactionDate <= endDate;
+      });
+    }
+
+    // Filter by specific user
+    if (filters.selectedUser) {
+      filtered = filtered.filter(transaction => 
+        transaction.ten_nguoi_gui === filters.selectedUser ||
+        transaction.ten_nguoi_nhan === filters.selectedUser
+      );
+    }
+
+    return filtered;
+  }, [transactions, filters]);
+
+  // Get unique values for filter options
+  const uniqueGroups = useMemo(() => {
+    const groups = [...new Set(transactions.map(t => t.ten_nhom).filter(Boolean))];
+    return groups.sort();
+  }, [transactions]);
+
+  const uniqueUsers = useMemo(() => {
+    const users = new Set();
+    transactions.forEach(t => {
+      if (t.ten_nguoi_gui) users.add(t.ten_nguoi_gui);
+      if (t.ten_nguoi_nhan) users.add(t.ten_nguoi_nhan);
+    });
+    return Array.from(users).sort();
+  }, [transactions]);
+
+  const statusOptions = [
+    { value: 'cho_xac_nhan', label: 'Chờ xác nhận' },
+    { value: 'hoan_thanh', label: 'Hoàn thành' },
+    { value: 'da_huy', label: 'Đã hủy' }
+  ];
+
+  // Handle filter changes
+  const handleFilterChange = (key, value) => {
+    setFilters(prev => ({ ...prev, [key]: value }));
+  };
+
+  const clearFilters = () => {
+    setFilters({
+      searchText: '',
+      selectedGroup: '',
+      selectedStatus: '',
+      dateRange: null,
+      selectedUser: ''
+    });
+  };
+
+  // Handle search input with suggestions
+  const handleSearchChange = (value) => {
+    handleFilterChange('searchText', value);
+    
+    if (value.length > 0) {
+      const filtered = uniqueUsers.filter(user => 
+        user.toLowerCase().includes(value.toLowerCase())
+      );
+      setSuggestions(filtered);
+      setShowSuggestions(true);
+    } else {
+      setSuggestions([]);
+      setShowSuggestions(false);
+    }
+  };
+
+  const selectSuggestion = (suggestion) => {
+    handleFilterChange('searchText', suggestion);
+    setShowSuggestions(false);
+  };
 
   if (loading) {
     return (
@@ -219,19 +418,28 @@ const HomePage = () => {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-            <div>
-          <h1 className="text-2xl font-bold text-gray-800">Quản lý giao dịch</h1>
-          <p className="text-gray-600">Theo dõi và quản lý các giao dịch trong hệ thống</p>
-            </div>
+        <div>
+          <h1 className="text-2xl font-bold text-gray-800">
+            {user.la_admin === 1 || user.la_admin === true ? 'Quản lý giao dịch' : 'Giao dịch của tôi'}
+          </h1>
+          <p className="text-gray-600">
+            {user.la_admin === 1 || user.la_admin === true 
+              ? 'Theo dõi và quản lý tất cả giao dịch trong hệ thống' 
+              : 'Theo dõi các giao dịch liên quan đến bạn (giao lịch, nhận lịch, san cho, nhận san)'
+            }
+          </p>
+        </div>
         <div className="flex items-center space-x-4">
           <div className="text-right">
-            <p className="text-sm text-gray-500">Tổng giao dịch</p>
-            <p className="text-2xl font-bold text-blue-600">{transactions.length}</p>
+            <p className="text-sm text-gray-500">
+              {user.la_admin === 1 || user.la_admin === true ? 'Tổng giao dịch' : 'Giao dịch của tôi'}
+            </p>
+            <p className="text-2xl font-bold text-blue-600">{filteredTransactions.length}</p>
           </div>
           <div className="text-right">
             <p className="text-sm text-gray-500">Chờ xác nhận</p>
             <p className="text-2xl font-bold text-yellow-600">
-              {transactions.filter(t => t.trang_thai === 'cho_xac_nhan').length}
+              {filteredTransactions.filter(t => t.trang_thai === 'cho_xac_nhan').length}
             </p>
           </div>
         </div>
@@ -241,23 +449,191 @@ const HomePage = () => {
       {error && (
         <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
           <p className="text-red-600">{error}</p>
-                </div>
+        </div>
       )}
+
+      {/* Filters Section */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-100">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-gray-800 flex items-center">
+              <FilterOutlined className="mr-2" />
+              Bộ lọc giao dịch
+            </h2>
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+            >
+              {showFilters ? 'Ẩn bộ lọc' : 'Hiển thị bộ lọc'}
+            </button>
+          </div>
+        </div>
+        
+        {showFilters && (
+          <div className="px-6 py-4 space-y-4">
+            {/* Search and User Filter Row */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Search Box with Suggestions */}
+              <div className="relative">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Tìm kiếm theo tên người gửi/nhận
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={filters.searchText}
+                    onChange={(e) => handleSearchChange(e.target.value)}
+                    placeholder="Nhập tên để tìm kiếm..."
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                  <SearchOutlined className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                </div>
+                
+                {/* Suggestions Dropdown */}
+                {showSuggestions && suggestions.length > 0 && (
+                  <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                    {suggestions.map((suggestion, index) => (
+                      <div
+                        key={index}
+                        onClick={() => selectSuggestion(suggestion)}
+                        className="px-4 py-2 hover:bg-gray-100 cursor-pointer border-b border-gray-100 last:border-b-0"
+                      >
+                        {suggestion}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* User Filter */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Lọc theo người dùng cụ thể
+                </label>
+                <select
+                  value={filters.selectedUser}
+                  onChange={(e) => handleFilterChange('selectedUser', e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="">Tất cả người dùng</option>
+                  {uniqueUsers.map((userName) => (
+                    <option key={userName} value={userName}>
+                      {userName}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Group and Status Filter Row */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Group Filter */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Lọc theo nhóm
+                </label>
+                <select
+                  value={filters.selectedGroup}
+                  onChange={(e) => handleFilterChange('selectedGroup', e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="">Tất cả nhóm</option>
+                  {uniqueGroups.map((groupName) => (
+                    <option key={groupName} value={groupName}>
+                      {groupName}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Status Filter */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Lọc theo trạng thái
+                </label>
+                <select
+                  value={filters.selectedStatus}
+                  onChange={(e) => handleFilterChange('selectedStatus', e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="">Tất cả trạng thái</option>
+                  {statusOptions.map((status) => (
+                    <option key={status.value} value={status.value}>
+                      {status.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Date Range Filter Row */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Lọc theo khoảng thời gian
+              </label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <input
+                  type="date"
+                  value={filters.dateRange?.[0] || ''}
+                  onChange={(e) => {
+                    const newRange = filters.dateRange ? [e.target.value, filters.dateRange[1]] : [e.target.value, ''];
+                    handleFilterChange('dateRange', newRange);
+                  }}
+                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+                <input
+                  type="date"
+                  value={filters.dateRange?.[1] || ''}
+                  onChange={(e) => {
+                    const newRange = filters.dateRange ? [filters.dateRange[0], e.target.value] : ['', e.target.value];
+                    handleFilterChange('dateRange', newRange);
+                  }}
+                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+            </div>
+
+            {/* Filter Actions */}
+            <div className="flex items-center justify-between pt-2">
+              <div className="text-sm text-gray-600">
+                Hiển thị {filteredTransactions.length} giao dịch trong tổng số {transactions.length} giao dịch
+              </div>
+              <button
+                onClick={clearFilters}
+                className="flex items-center px-4 py-2 text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+              >
+                <ClearOutlined className="mr-2" />
+                Xóa bộ lọc
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Transactions List */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-100">
-          <h2 className="text-lg font-semibold text-gray-800">Danh sách giao dịch</h2>
-              </div>
+          <h2 className="text-lg font-semibold text-gray-800">
+            {user.la_admin === 1 || user.la_admin === true ? 'Danh sách giao dịch' : 'Giao dịch của tôi'}
+          </h2>
+        </div>
         
         <div className="divide-y divide-gray-100">
-          {transactions.length === 0 ? (
+          {filteredTransactions.length === 0 ? (
             <div className="p-8 text-center text-gray-500">
               <TransactionOutlined className="text-4xl mb-4 text-gray-300" />
-              <p>Chưa có giao dịch nào</p>
+              <p>
+                {transactions.length === 0 
+                  ? (user.la_admin === 1 || user.la_admin === true 
+                      ? 'Chưa có giao dịch nào trong hệ thống' 
+                      : 'Bạn chưa có giao dịch nào (giao lịch, nhận lịch, san cho, nhận san)'
+                    )
+                  : 'Không có giao dịch nào khớp với bộ lọc đã chọn'
+                }
+              </p>
             </div>
           ) : (
-            transactions.map((transaction) => (
+            filteredTransactions.map((transaction) => (
               <div key={transaction.id_giao_dich} className="p-6 hover:bg-gray-50 transition-colors">
                 <div className="flex items-start justify-between">
                   {/* Transaction Info */}
@@ -271,7 +647,7 @@ const HomePage = () => {
                         <p className="text-sm text-gray-500">
                           {transaction.noi_dung}
                         </p>
-          </div>
+                      </div>
                     </div>
 
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
@@ -291,7 +667,8 @@ const HomePage = () => {
                         <span className="text-gray-500">Loại giao dịch:</span>
                         <p className="font-medium">{transaction.ten_loai_giao_dich || 'N/A'}</p>
                       </div>
-                      {/* Số tiền và điểm */}
+                      
+                      {/* Số tiền và điểm - Logic mới */}
                       {(transaction.so_tien || transaction.diem) && (
                         <div className="mt-3 pt-3 border-t border-gray-200">
                           <div className="grid grid-cols-2 gap-4 text-sm">
@@ -299,14 +676,25 @@ const HomePage = () => {
                               <div>
                                 <span className="text-gray-600">Số tiền:</span>
                                 <p className={`font-medium ${
-                                  transaction.so_tien > 0 ? 'text-green-600' : 
-                                  transaction.so_tien < 0 ? 'text-red-600' : 'text-gray-600'
+                                  // Logic mới: 
+                                  // - Giao lịch (id=1): người giao lịch ĐƯỢC cộng tiền (+)
+                                  // - Nhận lịch (id=2): người nhận lịch BỊ trừ tiền (-)
+                                  // - San cho (id=4): người san cho BỊ trừ tiền (-)
+                                  // - Nhận san (id=5): người nhận san ĐƯỢC cộng tiền (+)
+                                  (transaction.id_loai_giao_dich === 1 || transaction.id_loai_giao_dich === 5) ? 'text-green-600' : 
+                                  (transaction.id_loai_giao_dich === 2 || transaction.id_loai_giao_dich === 4) ? 'text-red-600' : 'text-gray-600'
                                 }`}>
-                                  {transaction.so_tien > 0 ? '+' : ''}
+                                  {(transaction.id_loai_giao_dich === 1 || transaction.id_loai_giao_dich === 5) ? '+' : ''}
                                   {new Intl.NumberFormat('vi-VN', {
                                     style: 'currency',
                                     currency: 'VND'
-                                  }).format(transaction.so_tien)}
+                                  }).format(Math.abs(transaction.so_tien))}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  {transaction.id_loai_giao_dich === 1 ? 'Người giao lịch được cộng' :
+                                   transaction.id_loai_giao_dich === 2 ? 'Người nhận lịch bị trừ' :
+                                   transaction.id_loai_giao_dich === 4 ? 'Người san cho bị trừ' :
+                                   transaction.id_loai_giao_dich === 5 ? 'Người nhận san được cộng' : ''}
                                 </p>
                               </div>
                             )}
@@ -314,18 +702,25 @@ const HomePage = () => {
                               <div>
                                 <span className="text-gray-600">Số điểm:</span>
                                 <p className={`font-medium ${
-                                  transaction.diem > 0 ? 'text-green-600' : 
-                                  transaction.diem < 0 ? 'text-red-600' : 'text-gray-600'
+                                  // Logic tương tự như tiền
+                                  (transaction.id_loai_giao_dich === 1 || transaction.id_loai_giao_dich === 5) ? 'text-green-600' : 
+                                  (transaction.id_loai_giao_dich === 2 || transaction.id_loai_giao_dich === 4) ? 'text-red-600' : 'text-gray-600'
                                 }`}>
-                                  {transaction.diem > 0 ? '+' : ''}
-                                  {transaction.diem}
+                                  {(transaction.id_loai_giao_dich === 1 || transaction.id_loai_giao_dich === 5) ? '+' : ''}
+                                  {Math.abs(transaction.diem)}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  {transaction.id_loai_giao_dich === 1 ? 'Người giao lịch được cộng' :
+                                   transaction.id_loai_giao_dich === 2 ? 'Người nhận lịch bị trừ' :
+                                   transaction.id_loai_giao_dich === 4 ? 'Người san cho bị trừ' :
+                                   transaction.id_loai_giao_dich === 5 ? 'Người nhận san được cộng' : ''}
                                 </p>
                               </div>
                             )}
                           </div>
                         </div>
                       )}
-                      </div>
+                    </div>
 
                     {/* Vehicle Schedule Info - Chỉ hiển thị khi có lịch xe */}
                     {transaction.id_lich_xe && (
@@ -379,19 +774,35 @@ const HomePage = () => {
                             </div>
                           </div>
                         )}
-                        {/* Hiển thị người nhận lịch nếu có */}
-                        {transaction.id_nguoi_nhan_lich && (
-                          <div className="mt-3 pt-3 border-t border-blue-200">
-                            <div className="text-sm">
-                              <span className="text-gray-600">Người nhận lịch:</span>
-                              <p className="font-medium text-blue-700">
-                                {transaction.ten_nguoi_nhan_lich || 'N/A'}
-                          </p>
-                        </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
+                                                 {/* Hiển thị người nhận lịch nếu có */}
+                         {transaction.id_nguoi_nhan_lich && (
+                           <div className="mt-3 pt-3 border-t border-blue-200">
+                             <div className="text-sm">
+                               <span className="text-gray-600">Người nhận lịch:</span>
+                               <p className="font-medium text-blue-700">
+                                 {transaction.ten_nguoi_nhan_lich || 'N/A'}
+                               </p>
+                             </div>
+                           </div>
+                         )}
+                       </div>
+                     )}
+                     
+                     {/* Hiển thị thông tin tính điểm */}
+                     <PointCalculationDisplay 
+                       transaction={transaction}
+                       lichXeData={{
+                         so_cho: transaction.so_cho,
+                         gia_ve: transaction.so_tien,
+                         thoi_gian_bat_dau_don: transaction.thoi_gian_bat_dau_don,
+                         thoi_gian_bat_dau_tra: transaction.thoi_gian_bat_dau_tra,
+                         la_khu_hoi: transaction.la_khu_hoi,
+                         la_don_san_bay: transaction.la_don_san_bay,
+                         la_tien_san_bay: transaction.la_tien_san_bay,
+                         la_lich_pho: transaction.la_lich_pho,
+                         khoang_cach_km: transaction.khoang_cach_km
+                       }}
+                     />
                     
                     <div className="mt-3 text-xs text-gray-400">
                       {formatDate(transaction.ngay_tao)}
@@ -406,47 +817,29 @@ const HomePage = () => {
                     </span>
                     
                     {/* Action Buttons */}
-                                          {/* Hiển thị nút hành động chỉ khi giao dịch chưa xử lý */}
-                      {transaction.trang_thai === 'cho_xac_nhan' && (
-                        <div className="flex items-center space-x-3 mt-4 pt-4 border-t border-gray-200">
-                                                 {/* Nút xác nhận - chỉ hiển thị cho người nhận giao dịch giao lịch */}
-                         {transaction.id_loai_giao_dich === 1 &&
-                          transaction.id_nguoi_nhan === user.id_nguoi_dung && (
-                           <button
-                             onClick={() => handleConfirm(transaction.id_giao_dich)}
-                             disabled={processingId === transaction.id_giao_dich}
-                             className="flex-1 px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-lg font-medium hover:from-green-600 hover:to-emerald-700 transition-all duration-200 flex items-center justify-center space-x-2 disabled:opacity-50"
-                           >
-                             {processingId === transaction.id_giao_dich ? (
-                               <LoadingOutlined className="animate-spin" />
-                             ) : (
-                               <CheckOutlined />
-                             )}
-                             <span>Xác nhận</span>
-                           </button>
-                         )}
+                    {/* Hiển thị nút hành động chỉ khi giao dịch chưa xử lý */}
+                    {transaction.trang_thai === 'cho_xac_nhan' && (
+                      <div className="flex items-center space-x-3 mt-4 pt-4 border-t border-gray-200">
+                        {/* Nút xác nhận - chỉ hiển thị cho người nhận giao dịch giao lịch */}
+                        {transaction.id_loai_giao_dich === 1 &&
+                         transaction.id_nguoi_nhan === user.id_nguoi_dung && (
+                          <button
+                            onClick={() => handleConfirm(transaction.id_giao_dich)}
+                            disabled={processingId === transaction.id_giao_dich}
+                            className="flex-1 px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-lg font-medium hover:from-green-600 hover:to-emerald-700 transition-all duration-200 flex items-center justify-center space-x-2 disabled:opacity-50"
+                          >
+                            {processingId === transaction.id_giao_dich ? (
+                              <LoadingOutlined className="animate-spin" />
+                            ) : (
+                              <CheckOutlined />
+                            )}
+                            <span>Xác nhận</span>
+                          </button>
+                        )}
 
-                         {/* Nút hủy cho người nhận giao dịch giao lịch */}
-                         {transaction.id_loai_giao_dich === 1 &&
-                          transaction.id_nguoi_nhan === user.id_nguoi_dung && (
-                           <button
-                             onClick={() => handleCancel(transaction.id_giao_dich)}
-                             disabled={processingId === transaction.id_giao_dich}
-                             className="flex-1 px-4 py-2 border border-red-200 text-red-600 rounded-lg font-medium hover:bg-red-50 transition-colors flex items-center justify-center space-x-2 disabled:opacity-50"
-                           >
-                             {processingId === transaction.id_giao_dich ? (
-                               <LoadingOutlined className="animate-spin" />
-                             ) : (
-                               <CloseCircleOutlined />
-                             )}
-                             <span>Hủy</span>
-                           </button>
-                         )}
-                        
-                                                 {/* Nút hủy - hiển thị cho người gửi hoặc admin (người nhận đã có nút riêng ở trên) */}
-                         {(transaction.id_nguoi_gui === user.id_nguoi_dung || 
-                           user.la_admin === 1 || 
-                           user.la_admin === true) && (
+                        {/* Nút hủy cho người nhận giao dịch giao lịch */}
+                        {transaction.id_loai_giao_dich === 1 &&
+                         transaction.id_nguoi_nhan === user.id_nguoi_dung && (
                           <button
                             onClick={() => handleCancel(transaction.id_giao_dich)}
                             disabled={processingId === transaction.id_giao_dich}
@@ -460,41 +853,59 @@ const HomePage = () => {
                             <span>Hủy</span>
                           </button>
                         )}
-                        
-                                                                          {/* Nếu không có nút nào được hiển thị, hiển thị thông báo */}
-                         {!((transaction.id_loai_giao_dich === 1 && transaction.id_nguoi_nhan === user.id_nguoi_dung) ||
-                            (transaction.id_nguoi_gui === user.id_nguoi_dung || user.la_admin === 1 || user.la_admin === true)) && (
-                           <div className="w-full text-center text-sm text-gray-500 py-2">
-                             Bạn không có quyền thực hiện hành động này
-                           </div>
-                         )}
-                                              </div>
-                      )}
+                       
+                        {/* Nút hủy - hiển thị cho người gửi hoặc admin (người nhận đã có nút riêng ở trên) */}
+                        {(transaction.id_nguoi_gui === user.id_nguoi_dung || 
+                          user.la_admin === 1 || 
+                          user.la_admin === true) && (
+                         <button
+                           onClick={() => handleCancel(transaction.id_giao_dich)}
+                           disabled={processingId === transaction.id_giao_dich}
+                           className="flex-1 px-4 py-2 border border-red-200 text-red-600 rounded-lg font-medium hover:bg-red-50 transition-colors flex items-center justify-center space-x-2 disabled:opacity-50"
+                         >
+                           {processingId === transaction.id_giao_dich ? (
+                             <LoadingOutlined className="animate-spin" />
+                           ) : (
+                             <CloseCircleOutlined />
+                           )}
+                           <span>Hủy</span>
+                         </button>
+                       )}
+                       
+                                                                      {/* Nếu không có nút nào được hiển thị, hiển thị thông báo */}
+                       {!((transaction.id_loai_giao_dich === 1 && transaction.id_nguoi_nhan === user.id_nguoi_dung) ||
+                          (transaction.id_nguoi_gui === user.id_nguoi_dung || user.la_admin === 1 || user.la_admin === true)) && (
+                         <div className="w-full text-center text-sm text-gray-500 py-2">
+                           Bạn không có quyền thực hiện hành động này
+                         </div>
+                       )}
+                                            </div>
+                    )}
 
-                      {/* Hiển thị trạng thái giao dịch khi đã được xử lý */}
-                      {transaction.trang_thai && transaction.trang_thai !== 'cho_xac_nhan' && (
-                        <div className="mt-4 pt-4 border-t border-gray-200">
-                          <div className="text-center">
-                            <span className={`inline-flex items-center px-3 py-2 rounded-lg text-sm font-medium ${
-                              transaction.trang_thai === 'hoan_thanh' 
-                                ? 'bg-green-100 text-green-800 border border-green-200' 
-                                : transaction.trang_thai === 'da_huy'
-                                ? 'bg-red-100 text-red-800 border border-red-200'
-                                : 'bg-gray-100 text-gray-800 border border-gray-200'
-                            }`}>
-                              {transaction.trang_thai === 'hoan_thanh' ? 
-                                (transaction.id_loai_giao_dich === 4 || transaction.id_loai_giao_dich === 5) 
-                                  ? '✅ Giao dịch đã hoàn thành' 
-                                  : '✅ Giao dịch đã được xác nhận' :
-                               transaction.trang_thai === 'da_huy' ? '❌ Giao dịch đã bị hủy' :
-                               transaction.trang_thai}
-                            </span>
-                          </div>
+                    {/* Hiển thị trạng thái giao dịch khi đã được xử lý */}
+                    {transaction.trang_thai && transaction.trang_thai !== 'cho_xac_nhan' && (
+                      <div className="mt-4 pt-4 border-t border-gray-200">
+                        <div className="text-center">
+                          <span className={`inline-flex items-center px-3 py-2 rounded-lg text-sm font-medium ${
+                            transaction.trang_thai === 'hoan_thanh' 
+                              ? 'bg-green-100 text-green-800 border border-green-200' 
+                              : transaction.trang_thai === 'da_huy'
+                              ? 'bg-red-100 text-red-800 border border-red-200'
+                              : 'bg-gray-100 text-gray-800 border border-gray-200'
+                          }`}>
+                            {transaction.trang_thai === 'hoan_thanh' ? 
+                              (transaction.id_loai_giao_dich === 4 || transaction.id_loai_giao_dich === 5) 
+                                ? '✅ Giao dịch đã hoàn thành' 
+                                : '✅ Giao dịch đã được xác nhận' :
+                             transaction.trang_thai === 'da_huy' ? '❌ Giao dịch đã bị hủy' :
+                             transaction.trang_thai}
+                          </span>
                         </div>
-                      )}
-                    </div>
+                      </div>
+                    )}
                   </div>
                 </div>
+              </div>
             ))
           )}
         </div>

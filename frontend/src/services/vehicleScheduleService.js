@@ -122,7 +122,7 @@ export const vehicleScheduleService = {
     }
   },
 
-  // Lấy danh sách loại tuyến từ database
+  // Lấy danh sách loại tuyến
   async getRouteTypes(token) {
     try {
       console.log('getRouteTypes - Token:', token)
@@ -144,6 +144,117 @@ export const vehicleScheduleService = {
       return data
     } catch (error) {
       console.error('Error fetching route types:', error)
+      throw error
+    }
+  },
+
+  // Lấy lịch xe sắp tới (trong 1 tiếng tới)
+  async getUpcomingSchedules(token) {
+    try {
+      console.log('getUpcomingSchedules - Token:', token)
+      console.log('getUpcomingSchedules - API URL:', `${API_BASE_URL}/schedules/upcoming`)
+      
+      const response = await fetch(`${API_BASE_URL}/schedules/upcoming`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+      
+      const data = await response.json()
+      return data
+    } catch (error) {
+      console.error('Error fetching upcoming schedules:', error)
+      throw error
+    }
+  },
+
+  // Lấy lịch xe đã hoàn thành (sau 2 tiếng)
+  async getCompletedSchedules(token) {
+    try {
+      console.log('getCompletedSchedules - Token:', token)
+      console.log('getCompletedSchedules - API URL:', `${API_BASE_URL}/schedules/completed`)
+      
+      const response = await fetch(`${API_BASE_URL}/schedules/completed`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+      
+      const data = await response.json()
+      return data
+    } catch (error) {
+      console.error('Error fetching completed schedules:', error)
+      throw error
+    }
+  },
+
+  // Tự động hoàn thành lịch xe (sau 2 tiếng) - chỉ admin
+  async autoCompleteSchedules(token) {
+    try {
+      console.log('autoCompleteSchedules - Token:', token)
+      console.log('autoCompleteSchedules - API URL:', `${API_BASE_URL}/schedules/auto-complete`)
+      
+      const response = await fetch(`${API_BASE_URL}/schedules/auto-complete`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+      
+      const data = await response.json()
+      return data
+    } catch (error) {
+      console.error('Error auto-completing schedules:', error)
+      throw error
+    }
+  },
+
+  // Lấy lịch xe của người dùng cụ thể
+  async getUserSchedules(token, userId) {
+    try {
+      console.log('getUserSchedules - Token:', token)
+      console.log('getUserSchedules - User ID:', userId)
+      console.log('getUserSchedules - API URL:', `${API_BASE_URL}/users/${userId}/schedules`)
+      
+      const response = await fetch(`${API_BASE_URL}/users/${userId}/schedules`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+      
+      const data = await response.json()
+      console.log('getUserSchedules - Response data:', data)
+      return data
+    } catch (error) {
+      console.error('Error fetching user schedules:', error)
+      throw error
+    }
+  },
+
+  // Hủy lịch xe
+  async cancelSchedule(token, scheduleId) {
+    try {
+      console.log('cancelSchedule - Token:', token)
+      console.log('cancelSchedule - Schedule ID:', scheduleId)
+      console.log('cancelSchedule - API URL:', `${API_BASE_URL}/schedules/${scheduleId}/cancel`)
+      
+      const response = await fetch(`${API_BASE_URL}/schedules/${scheduleId}/cancel`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+      
+      const data = await response.json()
+      console.log('cancelSchedule - Response data:', data)
+      return data
+    } catch (error) {
+      console.error('Error cancelling schedule:', error)
       throw error
     }
   }

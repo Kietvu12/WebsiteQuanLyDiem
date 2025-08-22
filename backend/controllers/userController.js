@@ -552,32 +552,36 @@ class UserController {
   // Lấy lịch xe của người dùng
   static async getUserSchedules(req, res) {
     try {
-      const { id } = req.params;
-
-      // Kiểm tra quyền: chỉ admin hoặc chính người dùng đó mới được xem
-      const userId = parseInt(id);
-      const isOwnUser = req.user.id_nguoi_dung === userId;
-      const isAdmin = req.user.la_admin === 1 || req.user.la_admin === true;
+      console.log('=== getUserSchedules Debug ===')
+      console.log('Request user:', req.user)
+      console.log('User ID from params:', req.params.id)
       
-      if (!isOwnUser && !isAdmin) {
+      const { id } = req.params;
+      
+      // Kiểm tra quyền: chỉ admin hoặc chính người dùng đó mới được xem
+      if (req.user.id_nguoi_dung !== parseInt(id) && !req.user.la_admin) {
+        console.log('❌ Access denied - not authorized')
         return res.status(403).json({
           success: false,
           message: 'Không có quyền xem lịch xe của người dùng khác'
         });
       }
-
-      const schedules = await VehicleSchedule.getByCreator(id);
-
+      
+      console.log('✅ Access granted')
+      
+      const { VehicleSchedule } = require('../models');
+      const schedules = await VehicleSchedule.getUserSchedules(id);
+      
       res.json({
         success: true,
-        message: 'Lấy lịch xe thành công',
+        message: 'Lấy lịch xe của người dùng thành công',
         data: schedules
       });
     } catch (error) {
-      console.error('Lỗi lấy lịch xe:', error);
+      console.error('Lỗi lấy lịch xe của người dùng:', error);
       res.status(500).json({
         success: false,
-        message: 'Lỗi server khi lấy lịch xe'
+        message: 'Lỗi server khi lấy lịch xe của người dùng'
       });
     }
   }

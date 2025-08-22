@@ -25,6 +25,18 @@ router.get('/route-types', (req, res, next) => {
   next();
 }, VehicleScheduleController.getRouteTypes);
 
+// Lịch xe sắp tới (trong 1 tiếng tới)
+router.get('/upcoming', VehicleScheduleController.getUpcomingSchedules);
+
+// Lịch xe đã hoàn thành (sau 2 tiếng)
+router.get('/completed', VehicleScheduleController.getCompletedSchedules);
+
+// Tự động hoàn thành lịch xe (sau 2 tiếng) - chỉ admin
+router.post('/auto-complete', VehicleScheduleController.autoCompleteSchedules);
+
+// Hủy lịch xe
+router.put('/:id/cancel', VehicleScheduleController.cancelSchedule);
+
 // Vehicle Schedule routes
 router.get('/', VehicleScheduleController.getAllSchedules);
 router.post('/', VehicleScheduleController.createSchedule);

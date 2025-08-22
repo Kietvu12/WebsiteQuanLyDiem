@@ -263,13 +263,50 @@ DELETE /api/transactions/:id
 ```
 GET /api/schedules
 ```
+**Quyền:** Chỉ admin
 
-### 2. Lấy lịch xe theo ID
+### 2. Lấy lịch xe sắp tới (trong 1 tiếng tới)
+```
+GET /api/schedules/upcoming
+```
+**Quyền:** Tất cả người dùng đã đăng nhập
+
+### 3. Lấy lịch xe đã hoàn thành (sau 2 tiếng)
+```
+GET /api/schedules/completed
+```
+**Quyền:** Tất cả người dùng đã đăng nhập
+
+### 4. Tự động hoàn thành lịch xe (sau 2 tiếng)
+```
+POST /api/schedules/auto-complete
+```
+**Quyền:** Chỉ admin
+
+### 5. Hủy lịch xe
+```
+PUT /api/schedules/:id/cancel
+```
+**Quyền:** Người tạo lịch xe hoặc admin
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Hủy lịch xe thành công. Tiền và điểm đã được hoàn lại.",
+  "data": {
+    "scheduleId": 1,
+    "refundProcessed": true
+  }
+}
+```
+
+### 6. Lấy lịch xe theo ID
 ```
 GET /api/schedules/:id
 ```
 
-### 3. Tạo lịch xe mới
+### 7. Tạo lịch xe mới
 ```
 POST /api/schedules
 ```
@@ -303,12 +340,12 @@ POST /api/schedules
 - `5`: Đi huyện 1 chiều
 - `6`: Đi huyện 2 chiều
 
-### 4. Cập nhật lịch xe
+### 8. Cập nhật lịch xe
 ```
 PUT /api/schedules/:id
 ```
 
-### 5. Cập nhật trạng thái lịch xe
+### 9. Cập nhật trạng thái lịch xe
 ```
 PUT /api/schedules/:id/status
 ```
@@ -326,27 +363,27 @@ PUT /api/schedules/:id/status
 - `hoan_thanh`: Hoàn thành
 - `da_huy`: Đã hủy
 
-### 6. Xóa lịch xe
+### 10. Xóa lịch xe
 ```
 DELETE /api/schedules/:id
 ```
 
-### 7. Lấy lịch xe theo nhóm
+### 11. Lấy lịch xe theo nhóm
 ```
 GET /api/schedules/group/:groupId
 ```
 
-### 8. Lấy lịch xe theo người tạo
+### 12. Lấy lịch xe theo người tạo
 ```
 GET /api/schedules/creator/:userId
 ```
 
-### 9. Lấy lịch xe theo trạng thái
+### 13. Lấy lịch xe theo trạng thái
 ```
 GET /api/schedules/status/:status
 ```
 
-### 10. Lấy lịch xe theo ngày
+### 14. Lấy lịch xe theo ngày
 ```
 GET /api/schedules/date/:date
 ```

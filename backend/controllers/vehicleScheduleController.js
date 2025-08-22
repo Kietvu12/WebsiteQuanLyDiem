@@ -4,10 +4,27 @@ class VehicleScheduleController {
   // Lấy tất cả lịch xe
   static async getAllSchedules(req, res) {
     try {
+      console.log('=== getAllSchedules Debug ===')
+      console.log('Request user:', req.user)
+      console.log('User is admin:', req.user.la_admin)
+      
+      // Kiểm tra quyền admin
+      const isAdmin = req.user.la_admin === 1 || req.user.la_admin === true;
+      
+      if (!isAdmin) {
+        console.log('❌ Access denied - not admin')
+        return res.status(403).json({
+          success: false,
+          message: 'Chỉ admin mới có quyền xem tất cả lịch xe'
+        });
+      }
+      
+      console.log('✅ Access granted - is admin')
       const schedules = await VehicleSchedule.getAll();
+      
       res.json({
         success: true,
-        message: 'Lấy danh sách lịch xe thành công',
+        message: 'Lấy danh sách tất cả lịch xe thành công',
         data: schedules
       });
     } catch (error) {
@@ -15,6 +32,108 @@ class VehicleScheduleController {
       res.status(500).json({
         success: false,
         message: 'Lỗi server khi lấy danh sách lịch xe'
+      });
+    }
+  }
+
+  // Lấy lịch xe sắp tới (trong 1 tiếng tới)
+  static async getUpcomingSchedules(req, res) {
+    try {
+      console.log('=== getUpcomingSchedules Debug ===')
+      console.log('Request user:', req.user)
+      
+      // Kiểm tra quyền admin
+      const isAdmin = req.user.la_admin === 1 || req.user.la_admin === true;
+      
+      let schedules;
+      if (isAdmin) {
+        // Admin: lấy tất cả lịch xe sắp tới
+        schedules = await VehicleSchedule.getUpcomingSchedules();
+        console.log('✅ Admin - lấy tất cả lịch xe sắp tới:', schedules.length);
+      } else {
+        // User: chỉ lấy lịch xe sắp tới của họ (những lịch xe mà họ là người nhận)
+        schedules = await VehicleSchedule.getUserUpcomingSchedules(req.user.id_nguoi_dung);
+        console.log('✅ User - lấy lịch xe sắp tới của họ:', schedules.length);
+      }
+      
+      res.json({
+        success: true,
+        message: isAdmin ? 'Lấy danh sách lịch xe sắp tới thành công (Admin)' : 'Lấy danh sách lịch xe sắp tới của bạn thành công',
+        data: schedules
+      });
+    } catch (error) {
+      console.error('Lỗi lấy lịch xe sắp tới:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Lỗi server khi lấy lịch xe sắp tới'
+      });
+    }
+  }
+
+  // Lấy lịch xe đã hoàn thành (sau 2 tiếng)
+  static async getCompletedSchedules(req, res) {
+    try {
+      console.log('=== getCompletedSchedules Debug ===')
+      console.log('Request user:', req.user)
+      
+      // Kiểm tra quyền admin
+      const isAdmin = req.user.la_admin === 1 || req.user.la_admin === true;
+      
+      let schedules;
+      if (isAdmin) {
+        // Admin: lấy tất cả lịch xe đã hoàn thành
+        schedules = await VehicleSchedule.getCompletedSchedules();
+        console.log('✅ Admin - lấy tất cả lịch xe đã hoàn thành:', schedules.length);
+      } else {
+        // User: chỉ lấy lịch xe đã hoàn thành của họ (những lịch xe mà họ là người nhận)
+        schedules = await VehicleSchedule.getUserCompletedSchedules(req.user.id_nguoi_dung);
+        console.log('✅ User - lấy lịch xe đã hoàn thành của họ:', schedules.length);
+      }
+      
+      res.json({
+        success: true,
+        message: isAdmin ? 'Lấy danh sách lịch xe đã hoàn thành thành công (Admin)' : 'Lấy danh sách lịch xe đã hoàn thành của bạn thành công',
+        data: schedules
+      });
+    } catch (error) {
+      console.error('Lỗi lấy lịch xe đã hoàn thành:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Lỗi server khi lấy lịch xe đã hoàn thành'
+      });
+    }
+  }
+
+  // Tự động hoàn thành lịch xe (sau 2 tiếng)
+  static async autoCompleteSchedules(req, res) {
+    try {
+      console.log('=== autoCompleteSchedules Debug ===')
+      console.log('Request user:', req.user)
+      
+      // Kiểm tra quyền admin
+      const isAdmin = req.user.la_admin === 1 || req.user.la_admin === true;
+      
+      if (!isAdmin) {
+        console.log('❌ Access denied - not admin')
+        return res.status(403).json({
+          success: false,
+          message: 'Chỉ admin mới có quyền thực hiện tự động hoàn thành lịch xe'
+        });
+      }
+      
+      console.log('✅ Access granted - is admin')
+      const completedCount = await VehicleSchedule.autoCompleteSchedules();
+      
+      res.json({
+        success: true,
+        message: `Đã tự động hoàn thành ${completedCount} lịch xe`,
+        data: { completedCount }
+      });
+    } catch (error) {
+      console.error('Lỗi tự động hoàn thành lịch xe:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Lỗi server khi tự động hoàn thành lịch xe'
       });
     }
   }
@@ -490,6 +609,165 @@ class VehicleScheduleController {
       res.status(500).json({
         success: false,
         message: 'Lỗi server khi lấy danh sách loại tuyến'
+      });
+    }
+  }
+
+  // Hủy lịch xe
+  static async cancelSchedule(req, res) {
+    try {
+      console.log('=== cancelSchedule Debug ===')
+      console.log('Request user:', req.user)
+      console.log('Schedule ID:', req.params.id)
+      
+      const { id } = req.params;
+      const userId = req.user.id_nguoi_dung;
+      
+      // Lấy thông tin lịch xe hiện tại
+      const currentSchedule = await VehicleSchedule.getById(id);
+      if (!currentSchedule) {
+        return res.status(404).json({
+          success: false,
+          message: 'Không tìm thấy lịch xe'
+        });
+      }
+
+      console.log('Current schedule:', currentSchedule)
+
+      // Kiểm tra quyền: chỉ người tạo hoặc admin mới được hủy
+      const isCreator = userId === currentSchedule.id_nguoi_tao;
+      const isAdmin = req.user.la_admin === 1 || req.user.la_admin === true;
+      
+      if (!isCreator && !isAdmin) {
+        return res.status(403).json({
+          success: false,
+          message: 'Chỉ người tạo lịch xe hoặc admin mới có quyền hủy lịch xe này'
+        });
+      }
+
+      console.log('Proceeding with schedule cancellation...')
+
+      // Hủy lịch xe
+      const cancelResult = await VehicleSchedule.cancelSchedule(id, userId);
+      
+      if (!cancelResult.success) {
+        return res.status(500).json({
+          success: false,
+          message: 'Lỗi khi hủy lịch xe'
+        });
+      }
+
+      console.log('Schedule cancelled successfully')
+
+      // Xử lý hoàn tiền/điểm khi hủy lịch xe
+      console.log('=== XỬ LÝ HOÀN TIỀN/ĐIỂM KHI HỦY LỊCH XE ===')
+      try {
+        const { Transaction, User } = require('../models');
+        
+        // Lấy thông tin giao dịch "Giao lịch" và "Nhận lịch" liên quan
+        const giaoLichTransaction = await Transaction.findByScheduleIdAndType(id, 1); // Giao lịch
+        const nhanLichTransaction = await Transaction.findByScheduleIdAndType(id, 2); // Nhận lịch
+        
+        if (giaoLichTransaction && nhanLichTransaction) {
+          console.log('Found related transactions for refund:');
+          console.log('Giao lịch:', giaoLichTransaction);
+          console.log('Nhận lịch:', nhanLichTransaction);
+          
+          // Hoàn tiền/điểm cho người nhận lịch (người bị hủy)
+          if (nhanLichTransaction.so_tien && nhanLichTransaction.diem) {
+            const newReceiverBalance = nhanLichTransaction.nguoi_nhan.so_du + nhanLichTransaction.so_tien;
+            const newReceiverPoints = nhanLichTransaction.nguoi_nhan.diem + nhanLichTransaction.diem;
+            
+            await User.updateBalanceAndPoints(
+              nhanLichTransaction.id_nguoi_nhan,
+              newReceiverBalance,
+              newReceiverPoints
+            );
+            
+            console.log('✅ Đã hoàn tiền/điểm cho người nhận lịch');
+          }
+          
+          // Trừ tiền/điểm của người giao lịch (người bị hủy)
+          if (giaoLichTransaction.so_tien && giaoLichTransaction.diem) {
+            const newSenderBalance = giaoLichTransaction.nguoi_gui.so_du - giaoLichTransaction.so_tien;
+            const newSenderPoints = giaoLichTransaction.nguoi_gui.diem - giaoLichTransaction.diem;
+            
+            await User.updateBalanceAndPoints(
+              giaoLichTransaction.id_nguoi_gui,
+              newSenderBalance,
+              newSenderPoints
+            );
+            
+            console.log('✅ Đã trừ tiền/điểm của người giao lịch');
+          }
+          
+          // Tạo giao dịch "Hủy lịch" để ghi nhận
+          const huyLichTransaction = await Transaction.create({
+            id_loai_giao_dich: 3, // Hủy lịch
+            id_nguoi_gui: req.user.id_nguoi_dung,
+            id_nguoi_nhan: null,
+            id_nhom: currentSchedule.id_nhom,
+            id_lich_xe: id,
+            so_tien: 0,
+            diem: 0,
+            noi_dung: `Hủy lịch xe - Hoàn tiền/điểm cho người nhận lịch`,
+            trang_thai: 'hoan_thanh'
+          });
+          
+          console.log('✅ Đã tạo giao dịch "Hủy lịch" với ID:', huyLichTransaction.id);
+        } else {
+          console.log('⚠️ Không tìm thấy giao dịch liên quan để hoàn tiền/điểm');
+        }
+      } catch (refundError) {
+        console.error('❌ Lỗi khi xử lý hoàn tiền/điểm:', refundError);
+        // Không dừng quá trình hủy nếu xử lý hoàn tiền/điểm thất bại
+      }
+
+      // Tạo thông báo cho người nhận lịch (nếu có)
+      if (currentSchedule.id_nguoi_nhan) {
+        console.log('=== TẠO THÔNG BÁO HỦY LỊCH CHO NGƯỜI NHẬN ===')
+        try {
+          const { Notification } = require('../models');
+          const notificationData = {
+            id_nguoi_dung: currentSchedule.id_nguoi_nhan,
+            noi_dung: `Lịch xe từ ${req.user.ten_dang_nhap} đã bị hủy`
+          };
+          
+          const notificationId = await Notification.create(notificationData);
+          console.log('✅ Thông báo hủy lịch được tạo thành công với ID:', notificationId)
+        } catch (notificationError) {
+          console.error('❌ Lỗi khi tạo thông báo hủy lịch:', notificationError)
+          // Không dừng quá trình hủy nếu tạo thông báo thất bại
+        }
+      }
+
+      // Tạo thông báo cho người tạo lịch
+      console.log('=== TẠO THÔNG BÁO HỦY LỊCH CHO NGƯỜI TẠO ===')
+      try {
+        const { Notification } = require('../models');
+        const notificationData = {
+          id_nguoi_dung: currentSchedule.id_nguoi_tao,
+          noi_dung: `Lịch xe của bạn đã được hủy bởi ${req.user.ten_dang_nhap}`
+        };
+        
+        const notificationId = await Notification.create(notificationData);
+        console.log('✅ Thông báo hủy lịch cho người tạo được tạo thành công với ID:', notificationId)
+      } catch (notificationError) {
+        console.error('❌ Lỗi khi tạo thông báo hủy lịch cho người tạo:', notificationError)
+        // Không dừng quá trình hủy nếu tạo thông báo thất bại
+      }
+
+      console.log('=== cancelSchedule Success ===')
+      res.json({
+        success: true,
+        message: 'Hủy lịch xe thành công'
+      });
+    } catch (error) {
+      console.error('=== cancelSchedule Error ===')
+      console.error('Error details:', error)
+      res.status(500).json({
+        success: false,
+        message: 'Lỗi server khi hủy lịch xe'
       });
     }
   }
