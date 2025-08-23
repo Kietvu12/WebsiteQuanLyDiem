@@ -157,19 +157,29 @@ class VehicleSchedule {
         thoi_gian_bat_dau_tra,
         thoi_gian_ket_thuc_tra,
         id_nguoi_tao,
-        id_nhom
+        id_nhom,
+        id_nguoi_nhan
       } = scheduleData;
+
+      console.log('=== VehicleSchedule.create Debug ===');
+      console.log('Schedule data received:', scheduleData);
+      console.log('id_nguoi_nhan:', id_nguoi_nhan);
+      console.log('id_nguoi_nhan type:', typeof id_nguoi_nhan);
 
       const [result] = await pool.execute(
         `INSERT INTO lich_xe (id_loai_xe, id_loai_tuyen, thoi_gian_bat_dau_don, thoi_gian_ket_thuc_don,
-                              thoi_gian_bat_dau_tra, thoi_gian_ket_thuc_tra, id_nguoi_tao, id_nhom) 
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+                              thoi_gian_bat_dau_tra, thoi_gian_ket_thuc_tra, id_nguoi_tao, id_nhom, id_nguoi_nhan) 
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [id_loai_xe, id_loai_tuyen, thoi_gian_bat_dau_don, thoi_gian_ket_thuc_don,
-         thoi_gian_bat_dau_tra, thoi_gian_ket_thuc_tra, id_nguoi_tao, id_nhom]
+         thoi_gian_bat_dau_tra, thoi_gian_ket_thuc_tra, id_nguoi_tao, id_nhom, id_nguoi_nhan]
       );
+
+      console.log('✅ Lịch xe được tạo với ID:', result.insertId);
+      console.log('✅ id_nguoi_nhan đã được lưu:', id_nguoi_nhan);
 
       return { id: result.insertId, ...scheduleData };
     } catch (error) {
+      console.error('❌ Lỗi khi tạo lịch xe:', error);
       throw new Error(`Lỗi tạo lịch xe: ${error.message}`);
     }
   }

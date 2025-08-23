@@ -187,13 +187,62 @@ class Transaction {
         trang_thai = 'cho_xac_nhan'
       } = transactionData;
 
+      // Xử lý các giá trị null/undefined để tránh lỗi MySQL
+      const processedData = {
+        id_loai_giao_dich: id_loai_giao_dich !== undefined && id_loai_giao_dich !== null ? id_loai_giao_dich : null,
+        id_nguoi_gui: id_nguoi_gui !== undefined && id_nguoi_gui !== null ? id_nguoi_gui : null,
+        id_nguoi_nhan: id_nguoi_nhan !== undefined && id_nguoi_nhan !== null ? id_nguoi_nhan : null,
+        id_nhom: id_nhom !== undefined && id_nhom !== null ? id_nhom : null,
+        id_lich_xe: id_lich_xe !== undefined && id_lich_xe !== null ? id_lich_xe : null,
+        so_tien: so_tien !== undefined && so_tien !== null ? so_tien : null,
+        diem: diem !== undefined && diem !== null ? diem : null,
+        noi_dung: noi_dung || null,
+        trang_thai: trang_thai || 'cho_xac_nhan'
+      };
+
+      // Kiểm tra dữ liệu bắt buộc
+      if (processedData.id_loai_giao_dich === null || processedData.id_loai_giao_dich === undefined ||
+          processedData.id_nhom === null || processedData.id_nhom === undefined ||
+          !processedData.noi_dung) {
+        throw new Error('Thiếu thông tin bắt buộc để tạo giao dịch');
+      }
+      
+      // Kiểm tra: phải có ít nhất một trong hai (id_nguoi_gui hoặc id_nguoi_nhan)
+      if ((processedData.id_nguoi_gui === null || processedData.id_nguoi_gui === undefined) &&
+          (processedData.id_nguoi_nhan === null || processedData.id_nguoi_nhan === undefined)) {
+        throw new Error('Phải có ít nhất một người gửi hoặc người nhận');
+      }
+      
+      // Log validation result
+      console.log('✅ Validation passed:');
+      console.log('  - id_nguoi_gui:', processedData.id_nguoi_gui);
+      console.log('  - id_nguoi_nhan:', processedData.id_nguoi_nhan);
+      console.log('  - At least one is not null:', (processedData.id_nguoi_gui !== null && processedData.id_nguoi_gui !== undefined) || 
+                                                   (processedData.id_nguoi_nhan !== null && processedData.id_nguoi_nhan !== undefined));
+
+      console.log('Processed transaction data:', processedData);
+      console.log('🔍 Chi tiết validation:');
+      console.log('  - id_loai_giao_dich:', processedData.id_loai_giao_dich, '(type:', typeof processedData.id_loai_giao_dich, ')');
+      console.log('  - id_nguoi_gui:', processedData.id_nguoi_gui, '(type:', typeof processedData.id_nguoi_gui, ')');
+      console.log('  - id_nguoi_nhan:', processedData.id_nguoi_nhan, '(type:', typeof processedData.id_nguoi_nhan, ')');
+      console.log('  - id_nhom:', processedData.id_nhom, '(type:', typeof processedData.id_nhom, ')');
+      console.log('  - noi_dung:', processedData.noi_dung, '(type:', typeof processedData.noi_dung, ')');
+
+      console.log('🚀 Thực hiện SQL INSERT:');
+      console.log('  - SQL Query:', `INSERT INTO giao_dich (id_loai_giao_dich, id_nguoi_gui, id_nguoi_nhan, id_nhom, id_lich_xe, so_tien, diem, noi_dung, trang_thai, ngay_hoan_thanh) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)`);
+      console.log('  - Parameters:', [processedData.id_loai_giao_dich, processedData.id_nguoi_gui, processedData.id_nguoi_nhan, processedData.id_nhom, processedData.id_lich_xe, processedData.so_tien, processedData.diem, processedData.noi_dung, processedData.trang_thai]);
+      
       const [result] = await pool.execute(
-        `INSERT INTO giao_dich (id_loai_giao_dich, id_nguoi_gui, id_nguoi_nhan, id_nhom, id_lich_xe, so_tien, diem, noi_dung, trang_thai) 
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [id_loai_giao_dich, id_nguoi_gui, id_nguoi_nhan, id_nhom, id_lich_xe, so_tien, diem, noi_dung, trang_thai]
+        `INSERT INTO giao_dich (id_loai_giao_dich, id_nguoi_gui, id_nguoi_nhan, id_nhom, id_lich_xe, so_tien, diem, noi_dung, trang_thai, ngay_hoan_thanh) 
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)`,
+        [processedData.id_loai_giao_dich, processedData.id_nguoi_gui, processedData.id_nguoi_nhan, processedData.id_nhom, processedData.id_lich_xe, processedData.so_tien, processedData.diem, processedData.noi_dung, processedData.trang_thai]
       );
+      
+      console.log('✅ SQL INSERT thành công - Result:', result);
+      console.log('✅ Insert ID:', result.insertId);
       return result.insertId;
     } catch (error) {
+      console.error('Transaction.create error:', error);
       throw new Error(`Lỗi tạo giao dịch: ${error.message}`);
     }
   }

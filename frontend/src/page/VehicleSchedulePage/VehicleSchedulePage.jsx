@@ -158,11 +158,24 @@ const VehicleSchedulePage = () => {
   }
 
   const canCancelSchedule = (schedule) => {
-    // Chỉ có thể hủy lịch xe đang chờ xác nhận
-    if (schedule.trang_thai !== 'cho_xac_nhan') return false
+    // Không thể hủy lịch xe đã bị hủy hoặc đã hoàn thành
+    if (schedule.trang_thai === 'da_huy' || schedule.trang_thai === 'hoan_thanh') {
+      return false;
+    }
     
-    // Người tạo lịch xe hoặc admin có thể hủy
-    return schedule.id_nguoi_tao === user.id_nguoi_dung || user.la_admin === 1 || user.la_admin === true
+    // Người tạo và admin có thể hủy các trạng thái khác
+    if (schedule.id_nguoi_tao === user.id_nguoi_dung || 
+        user.la_admin === 1 || 
+        user.la_admin === true) {
+      return true;
+    }
+    
+    // Người nhận lịch xe chỉ có thể hủy khi lịch xe chưa hoàn thành và chưa hủy
+    if (schedule.id_nguoi_nhan === user.id_nguoi_dung) {
+      return schedule.trang_thai === 'cho_xac_nhan' || schedule.trang_thai === 'da_xac_nhan';
+    }
+    
+    return false;
   }
 
   const filteredSchedules = schedules.filter(schedule => {
@@ -377,6 +390,17 @@ const VehicleSchedulePage = () => {
                             <p className="text-xs text-gray-500 mt-1">
                               Nhóm: {schedule.ten_nhom}
                               {schedule.ten_nguoi_nhan && ` • Người nhận: ${schedule.ten_nguoi_nhan}`}
+                              {/* Hiển thị vai trò của user với lịch xe này */}
+                              {schedule.id_nguoi_tao === user.id_nguoi_dung && (
+                                <span className="inline-block ml-2 px-2 py-0.5 bg-blue-100 text-blue-600 text-xs rounded-full">
+                                  Bạn tạo
+                                </span>
+                              )}
+                              {schedule.id_nguoi_nhan === user.id_nguoi_dung && (
+                                <span className="inline-block ml-2 px-2 py-0.5 bg-green-100 text-green-600 text-xs rounded-full">
+                                  Bạn nhận
+                                </span>
+                              )}
                             </p>
                           </div>
                           <div className="flex items-center space-x-2 ml-4">
@@ -415,6 +439,21 @@ const VehicleSchedulePage = () => {
                     {/* Action Buttons */}
                     {canCancel && (
                       <div className="flex items-center justify-end space-x-3 mt-4 pt-4 border-t border-gray-100">
+                        {/* Thông báo về quyền hủy */}
+                        <div className="flex-1 text-xs text-gray-500">
+                          {schedule.id_nguoi_tao === user.id_nguoi_dung && (
+                            <span>Bạn có thể hủy lịch xe này vì bạn là người tạo</span>
+                          )}
+                          {schedule.id_nguoi_nhan === user.id_nguoi_dung && (
+                            <span>
+                              Bạn có thể hủy lịch xe này vì bạn là người nhận
+                              {schedule.trang_thai === 'da_xac_nhan' && ' (đã xác nhận)'}
+                            </span>
+                          )}
+                          {user.la_admin === 1 || user.la_admin === true ? (
+                            <span>Bạn có thể hủy lịch xe này vì bạn là admin</span>
+                          ) : null}
+                        </div>
                         <button
                           onClick={() => handleCancelSchedule(schedule.id_lich_xe)}
                           className="flex items-center space-x-2 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"

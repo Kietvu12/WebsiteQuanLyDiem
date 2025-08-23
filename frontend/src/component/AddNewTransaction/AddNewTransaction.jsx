@@ -303,20 +303,21 @@ const AddNewTransaction = () => {
 
       let scheduleId = null
 
-      // Tạo lịch xe trước nếu là giao lịch
+      // Tạo lịch xe trước nếu là giao dịch Giao lịch
       if (formData.id_loai_giao_dich === 1) {
-        console.log('Creating vehicle schedule...')
+        console.log('=== TẠO LỊCH XE ===')
+        
         const token = localStorage.getItem('authToken')
         const scheduleResponse = await vehicleScheduleService.createSchedule(token, {
           ...scheduleData,
           id_nguoi_tao: user.id_nguoi_dung,
           id_nhom: parseInt(formData.id_nhom),
-          id_nguoi_nhan: parseInt(formData.id_nguoi_nhan) // Thêm người nhận lịch
+          id_nguoi_nhan: parseInt(formData.id_nguoi_nhan)
         })
 
         if (scheduleResponse.success) {
           scheduleId = scheduleResponse.data.id
-          console.log('Vehicle schedule created with ID:', scheduleId)
+          console.log('✅ Lịch xe được tạo với ID:', scheduleId)
         } else {
           throw new Error('Không thể tạo lịch xe')
         }
@@ -324,13 +325,22 @@ const AddNewTransaction = () => {
 
       // Chuẩn bị data gửi API transaction
       const transactionData = {
-        id_loai_giao_dich: formData.id_loai_giao_dich,
-        id_nguoi_nhan: parseInt(formData.id_nguoi_nhan),
-        id_nhom: parseInt(formData.id_nhom),
-        id_lich_xe: scheduleId, // ID lịch xe nếu có
-        so_tien: formData.so_tien ? parseFloat(formData.so_tien) : 0,
-        diem: formData.diem ? parseInt(formData.diem) : 0,
-        noi_dung: formData.noi_dung.trim()
+        id_loai_giao_dich: parseInt(formData.id_loai_giao_dich) || 1,
+        id_nguoi_nhan: parseInt(formData.id_nguoi_nhan) || null,
+        id_nhom: parseInt(formData.id_nhom) || null,
+        id_lich_xe: scheduleId, // Đơn giản: gán trực tiếp scheduleId vào đây
+        so_tien: formData.so_tien && formData.so_tien !== '' ? parseFloat(formData.so_tien) : null,
+        diem: formData.diem && formData.diem !== '' ? parseInt(formData.diem) : null,
+        noi_dung: formData.noi_dung.trim() || ''
+      }
+      
+      console.log('=== DỮ LIỆU GIAO DỊCH ===')
+      console.log('Schedule ID:', scheduleId)
+      console.log('Transaction data:', transactionData)
+      
+      // Kiểm tra dữ liệu bắt buộc
+      if (!transactionData.id_nguoi_nhan || !transactionData.id_nhom || !transactionData.noi_dung) {
+        throw new Error('Vui lòng điền đầy đủ thông tin bắt buộc: người nhận, nhóm và nội dung');
       }
       
       console.log('Transaction data prepared:', transactionData)
@@ -548,12 +558,7 @@ const AddNewTransaction = () => {
             {/* Modal Body */}
             <form onSubmit={handleSubmit} className="p-6 space-y-6">
               {/* Debug Info */}
-              <div className="p-3 bg-yellow-100 rounded-lg text-xs text-yellow-800">
-                <strong>Debug Info:</strong><br />
-                Transaction Type: {formData.id_loai_giao_dich} ({typeof formData.id_loai_giao_dich})<br />
-                Should show vehicle form: {formData.id_loai_giao_dich === 1 ? 'YES' : 'NO'}<br />
-                Current user: {user?.ho_ten} (Admin: {user?.la_admin ? 'Yes' : 'No'})
-              </div>
+              
 
               {/* Transaction Type Selection */}
               <div>

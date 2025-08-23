@@ -98,6 +98,13 @@ class TransactionController {
         noi_dung
       } = req.body;
 
+      // Xử lý trường hợp id_lich_xe là object (frontend bug)
+      let processedIdLichXe = id_lich_xe;
+      if (id_lich_xe && typeof id_lich_xe === 'object' && id_lich_xe.id) {
+        console.log('⚠️ Frontend gửi id_lich_xe là object, lấy ID từ object:', id_lich_xe.id);
+        processedIdLichXe = id_lich_xe.id;
+      }
+
       const id_nguoi_gui = req.user.id_nguoi_dung;
       console.log('Extracted data:', {
         id_loai_giao_dich,
@@ -152,12 +159,12 @@ class TransactionController {
       // Tự động tính điểm cho giao dịch Giao lịch nếu có lịch xe
       let calculatedPoints = diem; // Sử dụng điểm được gửi lên nếu có
       
-      if (id_loai_giao_dich === 1 && id_lich_xe && !diem) { // Giao lịch có lịch xe nhưng chưa có điểm
+      if (id_loai_giao_dich === 1 && processedIdLichXe && !diem) { // Giao lịch có lịch xe nhưng chưa có điểm
         console.log('=== TỰ ĐỘNG TÍNH ĐIỂM CHO GIAO DỊCH GIAO LỊCH ===');
-        console.log('ID lịch xe:', id_lich_xe);
+        console.log('ID lịch xe:', processedIdLichXe);
         
         try {
-          const pointCalculationResult = await calculatePointsForGiaoLich(id_lich_xe);
+          const pointCalculationResult = await calculatePointsForGiaoLich(processedIdLichXe);
           
           if (pointCalculationResult.success) {
             if (pointCalculationResult.points === 'manual') {
@@ -187,26 +194,46 @@ class TransactionController {
       
       // Tạo giao dịch chính
       console.log('Creating main transaction in database...')
+      console.log('=== DỮ LIỆU GIAO DỊCH CHÍNH ===')
+      console.log('ID lịch xe từ request:', id_lich_xe)
+      console.log('ID lịch xe type:', typeof id_lich_xe)
+      console.log('ID lịch xe value:', id_lich_xe)
+      console.log('ID lịch xe đã xử lý:', processedIdLichXe)
+      
       const mainTransactionData = {
         id_loai_giao_dich,
         id_nguoi_gui,
         id_nguoi_nhan,
         id_nhom,
-        id_lich_xe,
+        id_lich_xe: processedIdLichXe,
         so_tien,
         diem: calculatedPoints, // Sử dụng điểm đã tính được
         noi_dung,
         trang_thai
       };
       
-      const mainTransactionId = await Transaction.create(mainTransactionData);
-      console.log('Main transaction created with ID:', mainTransactionId)
+      console.log('Main transaction data to be created:', mainTransactionData);
+      console.log('✅ ID lịch xe trong mainTransactionData:', mainTransactionData.id_lich_xe);
+      
+      let mainTransactionId;
+      try {
+        mainTransactionId = await Transaction.create(mainTransactionData);
+        console.log('Main transaction created with ID:', mainTransactionId)
+      } catch (createError) {
+        console.error('❌ Lỗi khi tạo giao dịch chính:')
+        console.error('Error details:', createError)
+        console.error('Error message:', createError.message)
+        console.error('Error stack:', createError.stack)
+        console.error('Transaction data that failed:', mainTransactionData)
+        throw new Error(`Lỗi tạo giao dịch: ${createError.message}`)
+      }
 
       // Tạo giao dịch đối ứng nếu cần
       let oppositeTransactionId = null;
       
       if (id_loai_giao_dich === 1) { // Giao lịch
         console.log('=== TẠO GIAO DỊCH ĐỐI ỨNG: NHẬN LỊCH ===')
+        console.log('ID lịch xe từ giao dịch chính:', processedIdLichXe)
         
         // Tạo giao dịch "Nhận lịch" đối ứng
         const oppositeTransactionData = {
@@ -214,15 +241,29 @@ class TransactionController {
           id_nguoi_gui: id_nguoi_nhan, // Người nhận lịch trở thành người gửi
           id_nguoi_nhan: id_nguoi_gui, // Người giao lịch trở thành người nhận
           id_nhom,
-          id_lich_xe,
+          id_lich_xe: processedIdLichXe, // Sử dụng ID lịch xe từ giao dịch chính
           so_tien: so_tien ? -so_tien : null, // Đảo dấu tiền (người nhận lịch sẽ bị trừ tiền)
           diem: calculatedPoints ? -calculatedPoints : null, // Đảo dấu điểm đã tính được
           noi_dung: `Nhận lịch: ${noi_dung}`,
           trang_thai: 'cho_xac_nhan' // Chờ xác nhận
         };
         
-        oppositeTransactionId = await Transaction.create(oppositeTransactionData);
-        console.log('Opposite transaction (Nhận lịch) created with ID:', oppositeTransactionId)
+        console.log('Opposite transaction data (Nhận lịch):', oppositeTransactionData);
+        console.log('✅ ID lịch xe được liên kết đúng:', oppositeTransactionData.id_lich_xe);
+        
+        try {
+          oppositeTransactionId = await Transaction.create(oppositeTransactionData);
+          console.log('Opposite transaction (Nhận lịch) created with ID:', oppositeTransactionId)
+          console.log('✅ Giao dịch đối ứng đã được liên kết với lịch xe ID:', processedIdLichXe)
+        } catch (oppositeError) {
+          console.error('❌ Lỗi khi tạo giao dịch đối ứng (Nhận lịch):')
+          console.error('Error details:', oppositeError)
+          console.error('Error message:', oppositeError.message)
+          console.error('Error stack:', oppositeError.stack)
+          console.error('Opposite transaction data that failed:', oppositeTransactionData)
+          // Không dừng quá trình nếu tạo giao dịch đối ứng thất bại
+          console.log('⚠️ Tiếp tục xử lý giao dịch chính...')
+        }
         
       } else if (id_loai_giao_dich === 4) { // San cho
         console.log('=== TẠO GIAO DỊCH ĐỐI ỨNG: NHẬN SAN ===')
@@ -240,9 +281,21 @@ class TransactionController {
           trang_thai: 'hoan_thanh' // Tự động hoàn thành
         };
         
-        oppositeTransactionId = await Transaction.create(oppositeTransactionData);
-        console.log('Opposite transaction (Nhận san) created with ID:', oppositeTransactionId)
+        console.log('Opposite transaction data (Nhận san):', oppositeTransactionData);
         
+        try {
+          oppositeTransactionId = await Transaction.create(oppositeTransactionData);
+          console.log('Opposite transaction (Nhận san) created with ID:', oppositeTransactionId)
+        } catch (oppositeError) {
+          console.error('❌ Lỗi khi tạo giao dịch đối ứng (Nhận san):')
+          console.error('Error details:', oppositeError)
+          console.error('Error message:', oppositeError.message)
+          console.error('Error stack:', oppositeError.stack)
+          console.error('Opposite transaction data that failed:', oppositeTransactionData)
+          // Không dừng quá trình nếu tạo giao dịch đối ứng thất bại
+          console.log('⚠️ Tiếp tục xử lý giao dịch chính...')
+        }
+
         // CẬP NHẬT SỐ DƯ VÀ ĐIỂM NGAY LẬP TỨC CHO GIAO DỊCH SAN CHO - NHẬN SAN
         console.log('=== CẬP NHẬT SỐ DƯ VÀ ĐIỂM NGAY LẬP TỨC ===')
         try {
@@ -333,7 +386,7 @@ class TransactionController {
             
             // Thêm thông tin lịch xe nếu có
             let lichXeText = '';
-            if (id_lich_xe) {
+            if (processedIdLichXe) {
               lichXeText = ' (có lịch xe đi kèm)';
             }
             
@@ -429,7 +482,7 @@ class TransactionController {
             
             // Thêm thông tin lịch xe nếu có
             let lichXeText = '';
-            if (id_lich_xe) {
+            if (processedIdLichXe) {
               lichXeText = ' (có lịch xe đi kèm)';
             }
             
@@ -497,7 +550,7 @@ class TransactionController {
       };
 
       // Thêm thông tin về điểm đã tính được nếu là giao dịch Giao lịch
-      if (id_loai_giao_dich === 1 && id_lich_xe) {
+      if (id_loai_giao_dich === 1 && processedIdLichXe) {
         if (calculatedPoints === 'manual') {
           responseData.data.pointCalculation = {
             status: 'manual',
@@ -547,9 +600,26 @@ class TransactionController {
       
     } catch (error) {
       console.error('❌ Error in createTransaction:', error)
+      console.error('Error details:', error)
+      console.error('Error message:', error.message)
+      console.error('Error stack:', error.stack)
+      console.error('Request body:', req.body)
+      console.error('Request user:', req.user)
+      
+      // Trả về thông báo lỗi chi tiết hơn
+      let errorMessage = 'Lỗi server khi tạo giao dịch';
+      if (error.message.includes('Incorrect arguments to mysqld_stmt_execute')) {
+        errorMessage = 'Lỗi dữ liệu: Thông tin giao dịch không hợp lệ';
+      } else if (error.message.includes('Thiếu thông tin bắt buộc')) {
+        errorMessage = error.message;
+      } else if (error.message.includes('foreign key constraint')) {
+        errorMessage = 'Lỗi dữ liệu: Thông tin người dùng hoặc nhóm không hợp lệ';
+      }
+      
       res.status(500).json({
         success: false,
-        message: 'Lỗi server khi tạo giao dịch: ' + error.message
+        message: errorMessage,
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
       });
     }
   }
@@ -652,6 +722,21 @@ class TransactionController {
       await Transaction.updateStatus(id, 'hoan_thanh'); // Giao dịch chính
       await Transaction.updateStatus(oppositeTransaction.id_giao_dich, 'hoan_thanh'); // Giao dịch đối ứng
       console.log('✅ Cả 2 giao dịch đã được cập nhật trạng thái hoàn thành')
+
+      // Cập nhật trạng thái lịch xe nếu là giao dịch "Giao lịch"
+      if (transaction.id_loai_giao_dich === 1 && transaction.id_lich_xe) { // Giao lịch có lịch xe
+        console.log('=== CẬP NHẬT TRẠNG THÁI LỊCH XE ===')
+        console.log('ID lịch xe:', transaction.id_lich_xe)
+        
+        try {
+          const { VehicleSchedule } = require('../models');
+          await VehicleSchedule.updateStatus(transaction.id_lich_xe, 'da_xac_nhan');
+          console.log('✅ Lịch xe đã được cập nhật trạng thái "đã xác nhận"')
+        } catch (scheduleUpdateError) {
+          console.error('❌ Lỗi khi cập nhật trạng thái lịch xe:', scheduleUpdateError);
+          // Không dừng quá trình xác nhận nếu cập nhật lịch xe thất bại
+        }
+      }
 
       // Xử lý logic cộng trừ tiền và điểm
       console.log('=== XỬ LÝ CHUYỂN TIỀN VÀ ĐIỂM ===')
