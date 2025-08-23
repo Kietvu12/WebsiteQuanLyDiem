@@ -77,13 +77,56 @@ class User {
   // Cập nhật thông tin người dùng
   static async update(id, userData) {
     try {
-      const { ho_ten, so_dien_thoai, dia_chi } = userData;
-      const [result] = await pool.execute(
-        'UPDATE nguoi_dung SET ho_ten = ?, so_dien_thoai = ?, dia_chi = ? WHERE id_nguoi_dung = ?',
-        [ho_ten, so_dien_thoai, dia_chi, id]
-      );
-      return result.affectedRows > 0;
+      console.log('User.update - Updating user ID:', id);
+      console.log('User.update - User data:', userData);
+      
+      // Xây dựng câu lệnh UPDATE động dựa trên các field có giá trị
+      const updateFields = [];
+      const updateValues = [];
+      
+      if (userData.ho_ten !== undefined) {
+        updateFields.push('ho_ten = ?');
+        updateValues.push(userData.ho_ten);
+      }
+      
+      if (userData.so_dien_thoai !== undefined) {
+        updateFields.push('so_dien_thoai = ?');
+        updateValues.push(userData.so_dien_thoai);
+      }
+      
+      if (userData.dia_chi !== undefined) {
+        updateFields.push('dia_chi = ?');
+        updateValues.push(userData.dia_chi);
+      }
+      
+      // Nếu không có field nào để cập nhật
+      if (updateFields.length === 0) {
+        console.log('User.update - No fields to update');
+        return true; // Không cần cập nhật gì
+      }
+      
+      // Thêm ID vào cuối mảng values
+      updateValues.push(id);
+      
+      const updateQuery = `UPDATE nguoi_dung SET ${updateFields.join(', ')} WHERE id_nguoi_dung = ?`;
+      console.log('User.update - Update query:', updateQuery);
+      console.log('User.update - Update values:', updateValues);
+      
+      const [result] = await pool.execute(updateQuery, updateValues);
+      
+      const success = result.affectedRows > 0;
+      console.log('User.update - Update result:', success);
+      console.log('User.update - Affected rows:', result.affectedRows);
+      
+      if (success) {
+        console.log('✅ Cập nhật thông tin người dùng thành công cho user ID:', id);
+      } else {
+        console.log('⚠️ Không có dòng nào được cập nhật cho user ID:', id);
+      }
+      
+      return success;
     } catch (error) {
+      console.error('User.update - Error:', error);
       throw new Error(`Lỗi cập nhật người dùng: ${error.message}`);
     }
   }

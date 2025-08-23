@@ -35,9 +35,7 @@ class UserController {
         });
       }
 
-      // Tạo JWT token - sử dụng field names khớp với API response
-      console.log('🔍 JWT Debug - user.la_admin from DB:', user.la_admin, 'type:', typeof user.la_admin);
-      
+      // Tạo JWT token
       const token = jwt.sign(
         {
           id_nguoi_dung: user.id_nguoi_dung,
@@ -47,8 +45,6 @@ class UserController {
         JWT_SECRET,
         { expiresIn: '24h' }
       );
-      
-      console.log('🔍 JWT Debug - JWT payload created with la_admin:', user.la_admin);
 
       // Trả về thông tin người dùng (không bao gồm mật khẩu)
       const { mat_khau_hash, ...userInfo } = user;
@@ -142,11 +138,7 @@ class UserController {
   static async getProfile(req, res) {
     try {
       const userId = req.user.id_nguoi_dung;
-      console.log('getProfile - userId from JWT:', userId);
-      console.log('getProfile - req.user:', req.user);
-      
       const user = await User.getById(userId);
-      console.log('getProfile - user from DB:', user);
 
       if (!user) {
         return res.status(404).json({
@@ -174,6 +166,41 @@ class UserController {
       res.status(500).json({
         success: false,
         message: 'Lỗi server khi lấy thông tin cá nhân'
+      });
+    }
+  }
+
+  // Cập nhật thông tin cá nhân của người dùng hiện tại
+  static async updateProfile(req, res) {
+    try {
+      const userId = req.user.id_nguoi_dung;
+      const { ho_ten, so_dien_thoai, dia_chi } = req.body;
+
+      // Cập nhật thông tin cơ bản
+      if (ho_ten !== undefined || so_dien_thoai !== undefined || dia_chi !== undefined) {
+        const basicData = {};
+        if (ho_ten !== undefined) basicData.ho_ten = ho_ten;
+        if (so_dien_thoai !== undefined) basicData.so_dien_thoai = so_dien_thoai;
+        if (dia_chi !== undefined) basicData.dia_chi = dia_chi;
+
+        const success = await User.update(userId, basicData);
+        if (!success) {
+          return res.status(404).json({
+            success: false,
+            message: 'Không tìm thấy người dùng để cập nhật'
+          });
+        }
+      }
+
+      res.json({
+        success: true,
+        message: 'Cập nhật thông tin cá nhân thành công'
+      });
+    } catch (error) {
+      console.error('Lỗi cập nhật thông tin cá nhân:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Lỗi server khi cập nhật thông tin cá nhân'
       });
     }
   }
@@ -274,13 +301,13 @@ class UserController {
       }
 
       // Cập nhật thông tin cơ bản
-      if (ho_ten || so_dien_thoai || dia_chi) {
+      if (ho_ten !== undefined || so_dien_thoai !== undefined || dia_chi !== undefined) {
         const basicData = {};
         if (ho_ten !== undefined) basicData.ho_ten = ho_ten;
         if (so_dien_thoai !== undefined) basicData.so_dien_thoai = so_dien_thoai;
         if (dia_chi !== undefined) basicData.dia_chi = dia_chi;
 
-        const success = await User.update(id, basicData);
+        const success = await User.update(userId, basicData);
         if (!success) {
           return res.status(404).json({
             success: false,
@@ -290,10 +317,10 @@ class UserController {
       }
 
       // Cập nhật số dư và điểm (chỉ admin)
-      if (req.user.la_admin && (so_du !== undefined || diem !== undefined)) {
+      if (isAdmin && (so_du !== undefined || diem !== undefined)) {
         if (so_du !== undefined && diem !== undefined) {
           // Cập nhật cả số dư và điểm
-          const success = await User.updateBalanceAndPoints(id, so_du, diem);
+          const success = await User.updateBalanceAndPoints(userId, so_du, diem);
           if (!success) {
             return res.status(500).json({
               success: false,
@@ -302,7 +329,7 @@ class UserController {
           }
         } else if (so_du !== undefined) {
           // Chỉ cập nhật số dư
-          const success = await User.updateBalance(id, so_du);
+          const success = await User.updateBalance(userId, so_du);
           if (!success) {
             return res.status(500).json({
               success: false,
@@ -311,7 +338,7 @@ class UserController {
           }
         } else if (diem !== undefined) {
           // Chỉ cập nhật điểm
-          const success = await User.updatePoints(id, diem);
+          const success = await User.updatePoints(userId, diem);
           if (!success) {
             return res.status(500).json({
               success: false,
@@ -477,62 +504,26 @@ class UserController {
   // Lấy lịch sử giao dịch của người dùng
   static async getUserTransactions(req, res) {
     try {
-      console.log('🚀 === getUserTransactions CALLED ===');
-      console.log('🚀 Request method:', req.method);
-      console.log('🚀 Request URL:', req.url);
-      console.log('🚀 Request params:', req.params);
-      console.log('🚀 Request user:', req.user);
-      
       const { id } = req.params;
       
-      console.log('=== getUserTransactions Debug ===');
-      console.log('Request user:', req.user);
-      console.log('URL param id:', id);
-      console.log('req.user.id_nguoi_dung:', req.user.id_nguoi_dung, 'type:', typeof req.user.id_nguoi_dung);
-      console.log('req.user.la_admin:', req.user.la_admin, 'type:', typeof req.user.la_admin);
-      console.log('parseInt(id):', parseInt(id), 'type:', typeof parseInt(id));
-
       // Kiểm tra quyền: chỉ admin hoặc chính người dùng đó mới được xem
       const userId = parseInt(id);
       const isOwnUser = req.user.id_nguoi_dung === userId;
       const isAdmin = req.user.la_admin === 1 || req.user.la_admin === true;
-      console.log('userId:', userId);
-      console.log('req.user.id_nguoi_dung:', req.user.id_nguoi_dung);   
-      console.log('isOwnUser:', isOwnUser);
-      console.log('isAdmin:', isAdmin);
-      console.log('Final check:', !isOwnUser && !isAdmin);
-      console.log('🔍 Backend Debug - req.user.la_admin:', req.user.la_admin, 'type:', typeof req.user.la_admin);
-      console.log('🔍 Backend Debug - req.user.la_admin === 1:', req.user.la_admin === 1);
-      console.log('🔍 Backend Debug - req.user.la_admin === true:', req.user.la_admin === true);
-      console.log('🔍 Backend Debug - req.user.la_admin == 1:', req.user.la_admin == 1);
-      console.log('🔍 Backend Debug - req.user.la_admin == true:', req.user.la_admin == true);
-      console.log('🔍 Backend Debug - !!req.user.la_admin:', !!req.user.la_admin);
       
       if (!isOwnUser && !isAdmin) {
-        console.log('❌ Access denied - not own user and not admin');
-        console.log('❌ Final check result:', !isOwnUser && !isAdmin);
         return res.status(403).json({
           success: false,
           message: 'Không có quyền xem giao dịch của người dùng khác'
         });
       }
-      
-      console.log('✅ Access granted');
-      console.log('✅ Proceeding to fetch transactions...');
 
-      console.log('✅ Fetching transactions for user ID:', id);
       const transactions = await Transaction.getBySender(id);
-      console.log('✅ Sender transactions count:', transactions.length);
-      
       const receivedTransactions = await Transaction.getByReceiver(id);
-      console.log('✅ Receiver transactions count:', receivedTransactions.length);
 
       // Gộp và sắp xếp theo thời gian
       const allTransactions = [...transactions, ...receivedTransactions]
         .sort((a, b) => new Date(b.ngay_tao) - new Date(a.ngay_tao));
-      
-      console.log('✅ Total transactions:', allTransactions.length);
-      console.log('✅ Sending response...');
 
       res.json({
         success: true,
@@ -540,8 +531,7 @@ class UserController {
         data: allTransactions
       });
     } catch (error) {
-      console.error('❌ Lỗi lấy lịch sử giao dịch:', error);
-      console.error('❌ Error stack:', error.stack);
+      console.error('Lỗi lấy lịch sử giao dịch:', error);
       res.status(500).json({
         success: false,
         message: 'Lỗi server khi lấy lịch sử giao dịch'
@@ -552,24 +542,16 @@ class UserController {
   // Lấy lịch xe của người dùng
   static async getUserSchedules(req, res) {
     try {
-      console.log('=== getUserSchedules Debug ===')
-      console.log('Request user:', req.user)
-      console.log('User ID from params:', req.params.id)
-      
       const { id } = req.params;
       
       // Kiểm tra quyền: chỉ admin hoặc chính người dùng đó mới được xem
       if (req.user.id_nguoi_dung !== parseInt(id) && !req.user.la_admin) {
-        console.log('❌ Access denied - not authorized')
         return res.status(403).json({
           success: false,
           message: 'Không có quyền xem lịch xe của người dùng khác'
         });
       }
       
-      console.log('✅ Access granted')
-      
-      const { VehicleSchedule } = require('../models');
       const schedules = await VehicleSchedule.getUserSchedules(id);
       
       res.json({
