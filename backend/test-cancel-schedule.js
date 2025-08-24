@@ -64,19 +64,19 @@ function testCancelSchedule(schedule, transaction, sender, receiver) {
   
   // Xử lý hoàn tiền và điểm
   console.log('\n=== XỬ LÝ HOÀN TIỀN VÀ ĐIỂM ===')
-  const refundAmount = transaction.so_tien || 0
-  const refundPoints = transaction.diem || 0
+          const refundAmount = parseFloat(transaction.so_tien) || 0
+          const refundPoints = parseFloat(transaction.diem) || 0
   
   console.log('Số tiền hoàn lại:', refundAmount.toLocaleString('vi-VN'), 'VNĐ')
   console.log('Số điểm hoàn lại:', refundPoints)
   
   // Hoàn lại tiền và điểm cho người gửi (người tạo lịch)
   const newSenderBalance = parseFloat(sender.so_du) + parseFloat(refundAmount)
-  const newSenderPoints = parseInt(sender.diem) + parseInt(refundPoints)
+          const newSenderPoints = parseFloat(sender.diem) + parseFloat(refundPoints)
   
   // Hoàn lại tiền và điểm cho người nhận (người nhận lịch)
   const newReceiverBalance = parseFloat(receiver.so_du) - parseFloat(refundAmount)
-  const newReceiverPoints = parseInt(receiver.diem) - parseInt(refundPoints)
+          const newReceiverPoints = parseFloat(receiver.diem) - parseFloat(refundPoints)
   
   console.log('\n=== KẾT QUẢ HOÀN TIỀN VÀ ĐIỂM ===')
   console.log(`Người tạo lịch (ĐƯỢC HOÀN):`)

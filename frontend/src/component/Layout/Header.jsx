@@ -12,11 +12,12 @@ import {
   MailOutlined,
   PhoneOutlined,
   HomeOutlined,
-  ExclamationCircleOutlined
+  ExclamationCircleOutlined,
+  MenuOutlined
 } from '@ant-design/icons'
 import Notification from '../Notification/Notification'
 
-const Header = () => {
+const Header = ({ onToggleSidebar }) => {
   const { user, logout, updateProfile, changePassword } = useAuth()
   const [isProfileOpen, setIsProfileOpen] = useState(false)
   const [activeModal, setActiveModal] = useState(null)
@@ -134,7 +135,15 @@ const Header = () => {
 
   return (
     <>
-      <div className="bg-white border-b border-gray-100 px-8 py-4 flex items-center justify-between fixed top-0 left-72 right-0 z-30 h-16">
+      <div className="bg-white border-b border-gray-100 px-8 py-4 flex items-center justify-between fixed top-0 left-0 lg:left-72 right-0 z-30 h-16">
+        {/* Mobile menu button */}
+        <button
+          onClick={onToggleSidebar}
+          className="lg:hidden w-10 h-10 rounded-lg hover:bg-gray-100 flex items-center justify-center transition-colors mr-4"
+        >
+          <MenuOutlined className="text-gray-600 text-lg" />
+        </button>
+        
         <div className="flex-1 max-w-md">
           <div className="relative">
             <input

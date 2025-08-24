@@ -1,0 +1,59 @@
+BÁO CÁO NHÓM: Nhóm Xe Sân Bay
+Ngày xuất báo cáo: 23:36:06 24/8/2025
+
+=== BÁO CÁO GIAO DỊCH ===
+ID Giao dịch,Loại giao dịch,Người gửi,Người nhận,Nhóm,Lịch xe,Số tiền,Điểm,Nội dung,Trạng thái,Ngày tạo
+merged_195_196,Hủy lịch,Trần Thị B,Trần Quản Trị,Nhóm Xe Sân Bay,83,1.000.000 VNĐ,1.00,⚡ Hủy lịch xe #83 - Trần Thị B bị trừ và Trần Quản Trị được cộng,Hoàn thành,22:49:46 24/8/2025
+193,Giao lịch,Trần Quản Trị,Trần Thị B,Nhóm Xe Sân Bay,83,1.000.000 VNĐ,1.00,AAA,Hoàn thành,22:49:05 24/8/2025
+194,Nhận lịch,Trần Thị B,Trần Quản Trị,Nhóm Xe Sân Bay,83,-1.000.000 VNĐ,-1.00,Nhận lịch: AAA,Hoàn thành,22:49:05 24/8/2025
+merged_191_192,Hủy lịch,Trần Quản Trị,Trần Thị B,Nhóm Xe Sân Bay,82,1.000.000 VNĐ,2.00,⚡ Hủy lịch xe #82 - Trần Quản Trị bị trừ và Trần Thị B được cộng,Hoàn thành,22:26:09 24/8/2025
+189,Giao lịch,Trần Quản Trị,Trần Thị B,Nhóm Xe Sân Bay,82,1.000.000 VNĐ,2.00,adsdada,Hoàn thành,22:25:49 24/8/2025
+190,Nhận lịch,Trần Thị B,Trần Quản Trị,Nhóm Xe Sân Bay,82,-1.000.000 VNĐ,-2.00,Nhận lịch: adsdada,Hoàn thành,22:25:49 24/8/2025
+merged_187_188,Hủy lịch,Trần Quản Trị,Trần Quản Trị,Nhóm Xe Sân Bay,81,1.000.000 VNĐ,1.00,⚡ Hủy lịch xe #81 - Trần Quản Trị bị trừ và Trần Quản Trị được cộng,Hoàn thành,22:02:14 24/8/2025
+185,Giao lịch,Trần Quản Trị,Trần Thị B,Nhóm Xe Sân Bay,81,1.000.000 VNĐ,1.00,AAAA,Hoàn thành,22:01:37 24/8/2025
+186,Nhận lịch,Trần Thị B,Trần Quản Trị,Nhóm Xe Sân Bay,81,-1.000.000 VNĐ,-1.00,Nhận lịch: AAAA,Hoàn thành,22:01:37 24/8/2025
+merged_183_184,Hủy lịch,Trần Quản Trị,Trần Quản Trị,Nhóm Xe Sân Bay,80,1.000.000 VNĐ,0.20,⚡ Hủy lịch xe #80 - Trần Quản Trị bị trừ và Trần Quản Trị được cộng,Hoàn thành,21:53:21 24/8/2025
+181,Giao lịch,Trần Quản Trị,Trần Thị B,Nhóm Xe Sân Bay,80,1.000.000 VNĐ,-0.20,Â,Hoàn thành,21:52:17 24/8/2025
+182,Nhận lịch,Trần Thị B,Trần Quản Trị,Nhóm Xe Sân Bay,80,-1.000.000 VNĐ,0.20,Nhận lịch: Â,Hoàn thành,21:52:17 24/8/2025
+merged_179_180,Hủy lịch,Trần Quản Trị,Trần Quản Trị,Nhóm Xe Sân Bay,79,3.000.000 VNĐ,1.50,⚡ Hủy lịch xe #79 - Trần Quản Trị bị trừ và Trần Quản Trị được cộng,Hoàn thành,21:27:27 24/8/2025
+177,Giao lịch,Trần Quản Trị,Trần Thị B,Nhóm Xe Sân Bay,79,3.000.000 VNĐ,1.50,22222,Hoàn thành,21:26:56 24/8/2025
+178,Nhận lịch,Trần Thị B,Trần Quản Trị,Nhóm Xe Sân Bay,79,-3.000.000 VNĐ,-1.50,Nhận lịch: 22222,Hoàn thành,21:26:56 24/8/2025
+merged_175_176,Hủy lịch,Trần Quản Trị,Trần Quản Trị,Nhóm Xe Sân Bay,78,321.000 VNĐ,0.50,⚡ Hủy lịch xe #78 - Trần Quản Trị bị trừ và Trần Quản Trị được cộng,Hoàn thành,21:23:32 24/8/2025
+173,Giao lịch,Trần Quản Trị,Trần Thị B,Nhóm Xe Sân Bay,78,321.000 VNĐ,0.50,aa1,Hoàn thành,21:22:57 24/8/2025
+174,Nhận lịch,Trần Thị B,Trần Quản Trị,Nhóm Xe Sân Bay,78,-321.000 VNĐ,-0.50,Nhận lịch: aa1,Hoàn thành,21:22:57 24/8/2025
+merged_171_172,Hủy lịch,Trần Quản Trị,Trần Quản Trị,Nhóm Xe Sân Bay,77,1.000.000 VNĐ,1.00,⚡ Hủy lịch xe #77 - Trần Quản Trị bị trừ và Trần Quản Trị được cộng,Hoàn thành,21:18:23 24/8/2025
+169,Giao lịch,Trần Quản Trị,Trần Thị B,Nhóm Xe Sân Bay,77,1.000.000 VNĐ,1.00,AAAA,Hoàn thành,21:17:27 24/8/2025
+170,Nhận lịch,Trần Thị B,Trần Quản Trị,Nhóm Xe Sân Bay,77,-1.000.000 VNĐ,-1.00,Nhận lịch: AAAA,Hoàn thành,21:17:27 24/8/2025
+merged_167_168,Hủy lịch,Trần Quản Trị,Trần Quản Trị,Nhóm Xe Sân Bay,76,1.000.000 VNĐ,1.00,⚡ Hủy lịch xe #76 - Trần Quản Trị bị trừ và Trần Quản Trị được cộng,Hoàn thành,21:09:08 24/8/2025
+165,Giao lịch,Trần Quản Trị,Trần Thị B,Nhóm Xe Sân Bay,76,1.000.000 VNĐ,1.00,1221,Hoàn thành,21:08:01 24/8/2025
+166,Nhận lịch,Trần Thị B,Trần Quản Trị,Nhóm Xe Sân Bay,76,-1.000.000 VNĐ,-1.00,Nhận lịch: 1221,Hoàn thành,21:08:01 24/8/2025
+merged_163_164,Hủy lịch,Trần Quản Trị,Trần Quản Trị,Nhóm Xe Sân Bay,75,400.000 VNĐ,1.00,⚡ Hủy lịch xe #75 - Trần Quản Trị bị trừ và Trần Quản Trị được cộng,Hoàn thành,20:54:55 24/8/2025
+161,Giao lịch,Trần Quản Trị,Trần Thị B,Nhóm Xe Sân Bay,75,400.000 VNĐ,1.00,AAA,Hoàn thành,20:53:25 24/8/2025
+162,Nhận lịch,Trần Thị B,Trần Quản Trị,Nhóm Xe Sân Bay,75,-400.000 VNĐ,-1.00,Nhận lịch: AAA,Hoàn thành,20:53:25 24/8/2025
+
+=== BÁO CÁO LỊCH XE ===
+ID Lịch xe,Loại xe,Số chỗ,Loại tuyến,Người tạo,Người nhận,Thời gian đón,Thời gian trả,Trạng thái,Ngày tạo
+83,5 chỗ,5,Đón Sân bay - Hà Nội,N/A,N/A,22:48:00 24/8/2025,23:48:00 24/8/2025,Đã hủy,22:49:05 24/8/2025
+82,45 chỗ,45,Lịch Tỉnh/Huyện 1 Chiều,N/A,N/A,22:25:00 24/8/2025,23:25:00 24/8/2025,Đã hủy,22:25:49 24/8/2025
+81,7 chỗ,7,Đón Sân bay - Hà Nội,N/A,N/A,22:01:00 24/8/2025,23:01:00 24/8/2025,Đã hủy,22:01:37 24/8/2025
+80,7 chỗ,7,Tiễn Hà Nội - Sân bay,N/A,N/A,21:51:00 24/8/2025,22:51:00 24/8/2025,Đã hủy,21:52:17 24/8/2025
+79,7 chỗ,7,Tiễn Hà Nội - Sân bay,N/A,N/A,21:26:00 24/8/2025,21:26:00 24/8/2025,Đã hủy,21:26:56 24/8/2025
+78,16 chỗ,16,Lịch Phố 2 Chiều,N/A,N/A,21:22:00 24/8/2025,22:22:00 24/8/2025,Đã hủy,21:22:57 24/8/2025
+77,7 chỗ,7,Đón Sân bay - Hà Nội,N/A,N/A,21:17:00 24/8/2025,22:17:00 24/8/2025,Đã hủy,21:17:27 24/8/2025
+76,7 chỗ,7,Đón Sân bay - Hà Nội,N/A,N/A,21:07:00 24/8/2025,22:07:00 24/8/2025,Đã hủy,21:08:01 24/8/2025
+75,7 chỗ,7,Đón Sân bay - Hà Nội,N/A,N/A,20:53:00 31/8/2025,21:53:00 24/8/2025,Đã hủy,20:53:25 24/8/2025
+
+=== THỐNG KÊ ===
+Tổng số giao dịch,27
+Tổng số lịch xe,9
+Tổng số thành viên,2
+Tổng tiền,9.721.000 VNĐ
+Tổng điểm,9.20
+
+=== THỐNG KÊ THEO LOẠI GIAO DỊCH ===
+Loại giao dịch,Số lượng
+Giao lịch,9
+Nhận lịch,9
+Hủy lịch,9
+San cho,0
+Nhận san,0

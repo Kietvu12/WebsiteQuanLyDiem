@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { 
   SearchOutlined,
   PlusOutlined,
@@ -13,10 +13,14 @@ import {
   SortAscendingOutlined,
   SortDescendingOutlined,
   EyeOutlined,
-  CloseOutlined
+  CloseOutlined,
+  LoadingOutlined,
+  ExclamationCircleOutlined
 } from '@ant-design/icons'
+import { useAuth } from '../../contexts/AuthContext'
 
 const UsersPage = () => {
+  const { user: currentUser, isAuthenticated } = useAuth()
   const [searchUser, setSearchUser] = useState('')
   const [selectedUser, setSelectedUser] = useState(null)
   const [showUserModal, setShowUserModal] = useState(false)
@@ -32,93 +36,189 @@ const UsersPage = () => {
   const [transactionType, setTransactionType] = useState('all')
   const [scheduleStatus, setScheduleStatus] = useState('all')
 
-  const users = [
-    {
-      id: 1,
-      username: 'nguyenvana',
-      password: '********',
-      fullName: 'Nguyễn Văn A',
-      balance: 2500000,
-      points: 1250,
-      transactions: [
-        {
-          id: 1,
-          type: 'nhan_lich',
-          content: 'Nhận lịch xe Hà Nội - TP.HCM',
-          amount: '500,000',
-          points: 50,
-          datetime: '2024-01-15 08:30',
-          status: 'hoan_thanh'
-        },
-        {
-          id: 2,
-          type: 'giao_lich',
-          content: 'Giao lịch xe TP.HCM - Đà Nẵng',
-          amount: '750,000',
-          points: 75,
-          datetime: '2024-01-15 09:15',
-          status: 'da_xac_nhan'
+  // State cho API
+  const [users, setUsers] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState(null)
+  const [userTransactions, setUserTransactions] = useState({})
+  const [userSchedules, setUserSchedules] = useState({})
+  
+  // State cho modal
+  const [showCreateModal, setShowCreateModal] = useState(false)
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [editingUser, setEditingUser] = useState(null)
+  const [newUserData, setNewUserData] = useState({
+    ten_dang_nhap: '',
+    mat_khau: '',
+    email: '',
+    ho_ten: '',
+    so_dien_thoai: '',
+    dia_chi: ''
+  })
+
+  // Fetch tất cả người dùng
+  const fetchUsers = async () => {
+    if (!isAuthenticated) return
+    
+    setLoading(true)
+    setError(null)
+    try {
+      const token = localStorage.getItem('authToken')
+      const response = await fetch('http://localhost:5000/api/users', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
         }
-      ],
-      schedules: [
-        {
-          id: 1,
-          route: 'Hà Nội - TP.HCM',
-          departureTime: '2024-01-15 08:00',
-          arrivalTime: '2024-01-16 08:00',
-          status: 'hoan_thanh',
-          vehicleNumber: '29A-12345'
-        },
-        {
-          id: 2,
-          route: 'TP.HCM - Đà Nẵng',
-          departureTime: '2024-01-16 09:00',
-          arrivalTime: '2024-01-16 18:00',
-          status: 'dang_chay',
-          vehicleNumber: '51B-67890'
-        }
-      ]
-    },
-    {
-      id: 2,
-      username: 'levanc',
-      password: '********',
-      fullName: 'Lê Văn C',
-      balance: 1800000,
-      points: 890,
-      transactions: [
-        {
-          id: 3,
-          type: 'san_cho',
-          content: 'San cho xe Đà Nẵng - Huế',
-          amount: '300,000',
-          points: 30,
-          datetime: '2024-01-15 10:00',
-          status: 'hoan_thanh'
-        }
-      ],
-      schedules: [
-        {
-          id: 3,
-          route: 'Đà Nẵng - Huế',
-          departureTime: '2024-01-15 10:00',
-          arrivalTime: '2024-01-15 12:00',
-          status: 'hoan_thanh',
-          vehicleNumber: '43C-11111'
-        }
-      ]
-    },
-    {
-      id: 3,
-      username: 'hoangvane',
-      password: '********',
-      fullName: 'Hoàng Văn E',
-      balance: 3200000,
-      points: 1680,
-      transactions: [],
-      schedules: []
+      })
+      
+      const data = await response.json()
+      
+      if (response.ok && data.success) {
+        setUsers(data.data || [])
+      } else {
+        setError(data.message || 'Không thể lấy danh sách người dùng')
+      }
+    } catch (error) {
+      console.error('Error fetching users:', error)
+      setError(error.message || 'Có lỗi xảy ra khi tải danh sách người dùng')
+    } finally {
+      setLoading(false)
     }
-  ]
+  }
+
+  // Fetch giao dịch của người dùng
+  const fetchUserTransactions = async (userId) => {
+    if (!isAuthenticated || !userId) return
+    
+    try {
+      const token = localStorage.getItem('authToken')
+      const response = await fetch(`http://localhost:5000/api/users/${userId}/transactions`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        }
+      })
+      
+      const data = await response.json()
+      
+      if (response.ok && data.success) {
+        // Xử lý logic hiển thị giao dịch theo vai trò người dùng
+        const processedTransactions = processTransactionsForUser(data.data || [], userId, currentUser)
+        setUserTransactions(prev => ({
+          ...prev,
+          [userId]: processedTransactions
+        }))
+      }
+    } catch (error) {
+      console.error('Error fetching user transactions:', error)
+    }
+  }
+
+  // Xử lý logic hiển thị giao dịch theo vai trò người dùng
+  const processTransactionsForUser = (transactions, targetUserId, currentUser) => {
+    if (!transactions || transactions.length === 0) return []
+    
+    const isAdmin = currentUser?.la_admin === 1 || currentUser?.la_admin === true
+    const isOwnUser = currentUser?.id_nguoi_dung === parseInt(targetUserId)
+    
+    // Nếu là admin xem giao dịch của người khác, hiển thị tất cả
+    if (isAdmin && !isOwnUser) {
+      return transactions
+    }
+    
+    // Nếu là user thường xem giao dịch của mình hoặc admin xem giao dịch của mình
+    const processedTransactions = []
+    const processedScheduleIds = new Set()
+    
+    transactions.forEach(transaction => {
+      const scheduleId = transaction.id_lich_xe
+      
+      // Nếu đã xử lý lịch xe này rồi, bỏ qua
+      if (processedScheduleIds.has(scheduleId)) {
+        return
+      }
+      
+      // Tìm tất cả giao dịch liên quan đến lịch xe này
+      const relatedTransactions = transactions.filter(t => t.id_lich_xe === scheduleId)
+      
+      if (relatedTransactions.length > 1) {
+        // Có nhiều giao dịch liên quan (Giao lịch - Nhận lịch hoặc Hủy lịch)
+        if (transaction.id_loai_giao_dich === 1) { // Giao lịch
+          // Nếu là người giao lịch, chỉ hiển thị giao dịch giao lịch
+          if (transaction.id_nguoi_gui === parseInt(targetUserId)) {
+            processedTransactions.push(transaction)
+            processedScheduleIds.add(scheduleId)
+          }
+        } else if (transaction.id_loai_giao_dich === 2) { // Nhận lịch
+          // Nếu là người nhận lịch, chỉ hiển thị giao dịch nhận lịch
+          if (transaction.id_nguoi_nhan === parseInt(targetUserId)) {
+            processedTransactions.push(transaction)
+            processedScheduleIds.add(scheduleId)
+          }
+        } else if (transaction.id_loai_giao_dich === 3) { // Hủy lịch
+          // Gộp 2 giao dịch hủy lịch thành 1
+          const cancelTransactions = relatedTransactions.filter(t => t.id_loai_giao_dich === 3)
+          if (cancelTransactions.length === 2) {
+            const senderCancel = cancelTransactions.find(t => t.id_nguoi_gui === parseInt(targetUserId))
+            const receiverCancel = cancelTransactions.find(t => t.id_nguoi_nhan === parseInt(targetUserId))
+            
+            if (senderCancel || receiverCancel) {
+              // Tạo giao dịch gộp
+              const mergedTransaction = {
+                ...transaction,
+                noi_dung: `Hủy lịch xe #${scheduleId} - ${senderCancel ? 'Người giao' : 'Người nhận'} hủy`,
+                is_merged: true,
+                related_transactions: cancelTransactions
+              }
+              processedTransactions.push(mergedTransaction)
+              processedScheduleIds.add(scheduleId)
+            }
+          }
+        } else if (transaction.id_loai_giao_dich === 4 || transaction.id_loai_giao_dich === 5) { // San cho - Nhận san
+          // Tương tự như giao lịch - nhận lịch
+          if (transaction.id_loai_giao_dich === 4 && transaction.id_nguoi_gui === parseInt(targetUserId)) {
+            processedTransactions.push(transaction)
+            processedScheduleIds.add(scheduleId)
+          } else if (transaction.id_loai_giao_dich === 5 && transaction.id_nguoi_nhan === parseInt(targetUserId)) {
+            processedTransactions.push(transaction)
+            processedScheduleIds.add(scheduleId)
+          }
+        }
+      } else {
+        // Chỉ có 1 giao dịch, hiển thị bình thường
+        processedTransactions.push(transaction)
+        processedScheduleIds.add(scheduleId)
+      }
+    })
+    
+    return processedTransactions
+  }
+
+  // Fetch lịch xe của người dùng
+  const fetchUserSchedules = async (userId) => {
+    if (!isAuthenticated || !userId) return
+    
+    try {
+      const token = localStorage.getItem('authToken')
+      const response = await fetch(`http://localhost:5000/api/users/${userId}/schedules`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        }
+      })
+      
+      const data = await response.json()
+      
+      if (response.ok && data.success) {
+        setUserSchedules(prev => ({
+          ...prev,
+          [userId]: data.data || []
+        }))
+      }
+    } catch (error) {
+      console.error('Error fetching user schedules:', error)
+    }
+  }
 
   const transactionTypes = [
     { value: 'all', label: 'Tất cả loại giao dịch' },
@@ -138,20 +238,152 @@ const UsersPage = () => {
     { value: 'da_huy', label: 'Đã hủy' }
   ]
 
-  const handleCreateUser = () => {
-    console.log('Tạo người dùng mới')
-    // Xử lý logic tạo người dùng mới
+  // Load dữ liệu khi component mount
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchUsers()
+    }
+  }, [isAuthenticated])
+
+  // Tạo người dùng mới
+  const handleCreateUser = async () => {
+    // Validation
+    if (!newUserData.ten_dang_nhap.trim()) {
+      setError('Tên đăng nhập không được để trống')
+      return
+    }
+    if (!newUserData.mat_khau.trim()) {
+      setError('Mật khẩu không được để trống')
+      return
+    }
+    if (newUserData.mat_khau.length < 6) {
+      setError('Mật khẩu phải có ít nhất 6 ký tự')
+      return
+    }
+    if (!newUserData.email.trim()) {
+      setError('Email không được để trống')
+      return
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newUserData.email)) {
+      setError('Email không đúng định dạng')
+      return
+    }
+    if (!newUserData.ho_ten.trim()) {
+      setError('Họ tên không được để trống')
+      return
+    }
+    
+    setLoading(true)
+    try {
+      const token = localStorage.getItem('authToken')
+      const response = await fetch('http://localhost:5000/api/users', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(newUserData)
+      })
+      
+      const data = await response.json()
+      
+      if (response.ok && data.success) {
+        setShowCreateModal(false)
+        setNewUserData({ ten_dang_nhap: '', mat_khau: '', email: '', ho_ten: '', so_dien_thoai: '', dia_chi: '' })
+        fetchUsers()
+        setError(null)
+      } else {
+        setError(data.message || 'Không thể tạo người dùng')
+      }
+    } catch (error) {
+      console.error('Error creating user:', error)
+      setError('Có lỗi xảy ra khi tạo người dùng')
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const handleEditUser = (userId) => {
-    console.log('Sửa thông tin người dùng:', userId)
-    // Xử lý logic sửa thông tin người dùng
+  // Sửa thông tin người dùng
+  const handleEditUser = async (userId) => {
+    const user = users.find(u => u.id_nguoi_dung === userId)
+    if (user) {
+      setEditingUser(user)
+      setShowEditModal(true)
+    }
   }
 
-  const handleDeleteUser = (userId) => {
-    if (window.confirm('Bạn có chắc chắn muốn xóa người dùng này?')) {
-      console.log('Xóa người dùng:', userId)
-      // Xử lý logic xóa người dùng
+  // Cập nhật thông tin người dùng
+  const handleUpdateUser = async () => {
+    if (!editingUser) return
+    
+    // Validation
+    if (!editingUser.ho_ten.trim()) {
+      setError('Họ tên không được để trống')
+      return
+    }
+    
+    setLoading(true)
+    try {
+      const token = localStorage.getItem('authToken')
+      const response = await fetch(`http://localhost:5000/api/users/${editingUser.id_nguoi_dung}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ho_ten: editingUser.ho_ten,
+          so_dien_thoai: editingUser.so_dien_thoai,
+          dia_chi: editingUser.dia_chi
+        })
+      })
+      
+      const data = await response.json()
+      
+      if (response.ok && data.success) {
+        setShowEditModal(false)
+        setEditingUser(null)
+        fetchUsers()
+        setError(null)
+      } else {
+        setError(data.message || 'Không thể cập nhật người dùng')
+      }
+    } catch (error) {
+      console.error('Error updating user:', error)
+      setError('Có lỗi xảy ra khi cập nhật người dùng')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Xóa người dùng
+  const handleDeleteUser = async (userId) => {
+    if (!window.confirm('Bạn có chắc chắn muốn xóa người dùng này?')) return
+    
+    setLoading(true)
+    try {
+      const token = localStorage.getItem('authToken')
+      const response = await fetch(`http://localhost:5000/api/users/${userId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        }
+      })
+      
+      const data = await response.json()
+      
+      if (response.ok && data.success) {
+        fetchUsers()
+        setError(null)
+      } else {
+        setError(data.message || 'Không thể xóa người dùng')
+      }
+    } catch (error) {
+      console.error('Error deleting user:', error)
+      setError('Có lỗi xảy ra khi xóa người dùng')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -160,10 +392,18 @@ const UsersPage = () => {
     // Xử lý logic xuất báo cáo
   }
 
-  const handleUserClick = (user) => {
+  const handleUserClick = async (user) => {
     setSelectedUser(user)
     setShowUserModal(true)
     setActiveTab('transactions')
+    
+    // Load dữ liệu chi tiết nếu chưa có
+    if (!userTransactions[user.id_nguoi_dung]) {
+      await fetchUserTransactions(user.id_nguoi_dung)
+    }
+    if (!userSchedules[user.id_nguoi_dung]) {
+      await fetchUserSchedules(user.id_nguoi_dung)
+    }
   }
 
   const closeUserModal = () => {
@@ -179,15 +419,31 @@ const UsersPage = () => {
     setSortConfig({ field, direction })
   }
 
-  const getSortedUsers = () => {
-    if (!sortConfig.field) return users
+  // Lọc và sắp xếp người dùng
+  const getFilteredAndSortedUsers = () => {
+    let filteredUsers = users
 
-    return [...users].sort((a, b) => {
+    // Lọc theo tìm kiếm
+    if (searchUser.trim()) {
+      filteredUsers = users.filter(user => 
+        user.ho_ten.toLowerCase().includes(searchUser.toLowerCase()) ||
+        user.ten_dang_nhap.toLowerCase().includes(searchUser.toLowerCase()) ||
+        (user.email && user.email.toLowerCase().includes(searchUser.toLowerCase()))
+      )
+    }
+
+    // Sắp xếp
+    if (!sortConfig.field) return filteredUsers
+
+    return [...filteredUsers].sort((a, b) => {
       let aValue = a[sortConfig.field]
       let bValue = b[sortConfig.field]
 
       // Xử lý số dư và điểm
-      if (typeof aValue === 'number') {
+      if (sortConfig.field === 'so_du' || sortConfig.field === 'diem') {
+        aValue = parseFloat(aValue || 0)
+        bValue = parseFloat(bValue || 0)
+        
         if (sortConfig.direction === 'asc') {
           return aValue - bValue
         } else {
@@ -244,6 +500,22 @@ const UsersPage = () => {
       <div className="max-w-7xl mx-auto">
         <h1 className="text-2xl font-bold text-gray-800 mb-8">Quản lý Người dùng</h1>
         
+        {/* Error Message */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6">
+            <div className="flex items-center">
+              <ExclamationCircleOutlined className="text-red-500 mr-2" />
+              <span className="text-red-700">{error}</span>
+              <button
+                onClick={() => setError(null)}
+                className="ml-auto text-red-400 hover:text-red-600"
+              >
+                ×
+              </button>
+            </div>
+          </div>
+        )}
+        
         {/* Search and Create Section */}
         <div className="bg-white mb-6">
           <div className="flex items-center justify-between">
@@ -251,7 +523,7 @@ const UsersPage = () => {
               <div className="relative">
                 <input
                   type="text"
-                  placeholder="Tìm kiếm người dùng theo tên..."
+                  placeholder="Tìm kiếm theo tên, tài khoản hoặc email..."
                   value={searchUser}
                   onChange={(e) => setSearchUser(e.target.value)}
                   className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-gray-50"
@@ -260,7 +532,7 @@ const UsersPage = () => {
               </div>
             </div>
             <button
-              onClick={handleCreateUser}
+              onClick={() => setShowCreateModal(true)}
               className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl font-medium hover:from-blue-600 hover:to-purple-700 transition-all duration-200 shadow-sm"
             >
               <PlusOutlined className="text-sm" />
@@ -274,26 +546,32 @@ const UsersPage = () => {
           <div className="p-6 border-b border-gray-100">
             <h3 className="text-lg font-semibold text-gray-800">Bảng danh sách người dùng</h3>
           </div>
+          {loading ? (
+            <div className="p-12 text-center">
+              <LoadingOutlined className="text-4xl text-blue-500 mb-4" />
+              <p className="text-gray-500">Đang tải dữ liệu...</p>
+            </div>
+          ) : (
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     <button 
-                      onClick={() => handleSort('fullName')}
+                      onClick={() => handleSort('ho_ten')}
                       className="flex items-center hover:text-gray-700 transition-colors"
                     >
                       Tên người dùng
-                      {getSortIcon('fullName')}
+                      {getSortIcon('ho_ten')}
                     </button>
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     <button 
-                      onClick={() => handleSort('username')}
+                      onClick={() => handleSort('ten_dang_nhap')}
                       className="flex items-center hover:text-gray-700 transition-colors"
                     >
                       Tài khoản
-                      {getSortIcon('username')}
+                      {getSortIcon('ten_dang_nhap')}
                     </button>
                   </th>
                   <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -301,29 +579,36 @@ const UsersPage = () => {
                   </th>
                   <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                     <button 
-                      onClick={() => handleSort('balance')}
+                      onClick={() => handleSort('so_du')}
                       className="flex items-center justify-center hover:text-gray-700 transition-colors"
                     >
                       Số dư tiền
-                      {getSortIcon('balance')}
+                      {getSortIcon('so_du')}
                     </button>
                   </th>
                   <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                     <button 
-                      onClick={() => handleSort('points')}
+                      onClick={() => handleSort('diem')}
                       className="flex items-center justify-center hover:text-gray-700 transition-colors"
                     >
                       Điểm
-                      {getSortIcon('points')}
+                      {getSortIcon('diem')}
                     </button>
                   </th>
                   <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Thao tác</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {getSortedUsers().map(user => (
-                  <tr 
-                    key={user.id}
+                {getFilteredAndSortedUsers().length === 0 ? (
+                  <tr>
+                    <td colSpan="6" className="px-6 py-12 text-center text-gray-500">
+                      {searchUser ? 'Không tìm thấy người dùng nào phù hợp' : 'Chưa có người dùng nào'}
+                    </td>
+                  </tr>
+                ) : (
+                  getFilteredAndSortedUsers().map(user => (
+                    <tr 
+                      key={user.id_nguoi_dung}
                     className="hover:bg-gray-50 cursor-pointer transition-colors"
                     onClick={() => handleUserClick(user)}
                   >
@@ -332,27 +617,27 @@ const UsersPage = () => {
                         <div className="w-8 h-8 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center mr-3">
                           <UserOutlined className="text-white text-xs" />
                         </div>
-                        <div className="text-sm font-medium text-gray-900">{user.fullName}</div>
+                          <div className="text-sm font-medium text-gray-900">{user.ho_ten}</div>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{user.username}</div>
+                        <div className="text-sm text-gray-900">{user.ten_dang_nhap}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-center">
-                      <div className="text-sm text-gray-500">{user.password}</div>
+                        <div className="text-sm text-gray-500">••••••••</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-center">
                       <div className="flex items-center justify-center">
                         <DollarOutlined className="text-green-500 mr-2" />
                         <span className="text-sm font-medium text-gray-900">
-                          {user.balance.toLocaleString('vi-VN')} VNĐ
+                            {parseFloat(user.so_du || 0).toLocaleString('vi-VN')} VNĐ
                         </span>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-center">
                       <div className="flex items-center justify-center">
                         <TeamOutlined className="text-purple-500 mr-2" />
-                        <span className="text-sm font-medium text-gray-900">{user.points}</span>
+                          <span className="text-sm font-medium text-gray-900">{parseFloat(user.diem || 0).toFixed(2)}</span>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-center">
@@ -360,7 +645,7 @@ const UsersPage = () => {
                         <button
                           onClick={(e) => {
                             e.stopPropagation()
-                            handleExportReport(user.id)
+                              handleExportReport(user.id_nguoi_dung)
                           }}
                           className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                           title="Xuất báo cáo"
@@ -370,9 +655,9 @@ const UsersPage = () => {
                         <button
                           onClick={(e) => {
                             e.stopPropagation()
-                            handleEditUser(user.id)
+                              handleEditUser(user.id_nguoi_dung)
                           }}
-                          className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                            className="p-2 text-green-600 hover:bg-red-50 rounded-lg transition-colors"
                           title="Sửa thông tin"
                         >
                           <EditOutlined className="text-sm" />
@@ -380,7 +665,7 @@ const UsersPage = () => {
                         <button
                           onClick={(e) => {
                             e.stopPropagation()
-                            handleDeleteUser(user.id)
+                              handleDeleteUser(user.id_nguoi_dung)
                           }}
                           className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                           title="Xóa người dùng"
@@ -390,11 +675,182 @@ const UsersPage = () => {
                       </div>
                     </td>
                   </tr>
-                ))}
+                  ))
+                )}
               </tbody>
             </table>
           </div>
+          )}
         </div>
+
+        {/* Create User Modal */}
+        {showCreateModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-2xl p-6 w-full max-w-lg">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">Tạo người dùng mới</h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Tên đăng nhập *</label>
+                  <input
+                    type="text"
+                    value={newUserData.ten_dang_nhap}
+                    onChange={(e) => setNewUserData(prev => ({ ...prev, ten_dang_nhap: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Nhập tên đăng nhập"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Mật khẩu *</label>
+                  <input
+                    type="password"
+                    value={newUserData.mat_khau}
+                    onChange={(e) => setNewUserData(prev => ({ ...prev, mat_khau: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Nhập mật khẩu"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Email *</label>
+                  <input
+                    type="email"
+                    value={newUserData.email}
+                    onChange={(e) => setNewUserData(prev => ({ ...prev, email: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Nhập email"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Họ tên *</label>
+                  <input
+                    type="text"
+                    value={newUserData.ho_ten}
+                    onChange={(e) => setNewUserData(prev => ({ ...prev, ho_ten: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Nhập họ tên"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Số điện thoại</label>
+                  <input
+                    type="tel"
+                    value={newUserData.so_dien_thoai}
+                    onChange={(e) => setNewUserData(prev => ({ ...prev, so_dien_thoai: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Nhập số điện thoại"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Địa chỉ</label>
+                  <textarea
+                    value={newUserData.dia_chi}
+                    onChange={(e) => setNewUserData(prev => ({ ...prev, dia_chi: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Nhập địa chỉ"
+                    rows="3"
+                  />
+                </div>
+              </div>
+              <div className="flex space-x-3 mt-6">
+                <button
+                  onClick={() => {
+                    setShowCreateModal(false)
+                    setNewUserData({ ten_dang_nhap: '', mat_khau: '', email: '', ho_ten: '', so_dien_thoai: '', dia_chi: '' })
+                    setError(null)
+                  }}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Hủy
+                </button>
+                <button
+                  onClick={handleCreateUser}
+                  disabled={loading}
+                  className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50"
+                >
+                  {loading ? <LoadingOutlined /> : 'Tạo người dùng'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Edit User Modal */}
+        {showEditModal && editingUser && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-2xl p-6 w-full max-w-lg">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">Sửa thông tin người dùng</h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Tên đăng nhập</label>
+                  <input
+                    type="text"
+                    value={editingUser.ten_dang_nhap}
+                    disabled
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-500"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Tên đăng nhập không thể thay đổi</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                  <input
+                    type="email"
+                    value={editingUser.email || ''}
+                    disabled
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-500"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Email không thể thay đổi</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Họ tên *</label>
+                  <input
+                    type="text"
+                    value={editingUser.ho_ten || ''}
+                    onChange={(e) => setEditingUser(prev => ({ ...prev, ho_ten: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Số điện thoại</label>
+                  <input
+                    type="tel"
+                    value={editingUser.so_dien_thoai || ''}
+                    onChange={(e) => setEditingUser(prev => ({ ...prev, so_dien_thoai: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Nhập số điện thoại"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Địa chỉ</label>
+                  <textarea
+                    value={editingUser.dia_chi || ''}
+                    onChange={(e) => setEditingUser(prev => ({ ...prev, dia_chi: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Nhập địa chỉ"
+                    rows="3"
+                  />
+                </div>
+              </div>
+              <div className="flex space-x-3 mt-6">
+                <button
+                  onClick={() => {
+                    setShowEditModal(false)
+                    setEditingUser(null)
+                    setError(null)
+                  }}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Hủy
+                </button>
+                <button
+                  onClick={handleUpdateUser}
+                  disabled={loading}
+                  className="flex-1 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors disabled:opacity-50"
+                >
+                  {loading ? <LoadingOutlined /> : 'Cập nhật'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* User Details Modal */}
         {showUserModal && selectedUser && (
@@ -403,7 +859,7 @@ const UsersPage = () => {
               {/* Modal Header */}
               <div className="flex items-center justify-between p-6 border-b border-gray-200">
                 <h3 className="text-xl font-semibold text-gray-800">
-                  Chi tiết người dùng: {selectedUser.fullName}
+                  Chi tiết người dùng: {selectedUser.ho_ten}
                 </h3>
                 <button
                   onClick={closeUserModal}
@@ -426,7 +882,7 @@ const UsersPage = () => {
                           : 'border-transparent text-gray-500 hover:text-gray-700'
                       }`}
                     >
-                      Lịch sử giao dịch ({selectedUser.transactions.length})
+                      Lịch sử giao dịch ({(userTransactions[selectedUser.id_nguoi_dung] || []).length})
                     </button>
                     <button
                       onClick={() => setActiveTab('schedules')}
@@ -436,7 +892,7 @@ const UsersPage = () => {
                           : 'border-transparent text-gray-500 hover:text-gray-700'
                       }`}
                     >
-                      Lịch sử lịch xe ({selectedUser.schedules.length})
+                      Lịch sử lịch xe ({(userSchedules[selectedUser.id_nguoi_dung] || []).length})
                     </button>
                   </div>
                 </div>
@@ -482,23 +938,32 @@ const UsersPage = () => {
 
                     {/* Transactions List */}
                     <div className="space-y-3 max-h-96 overflow-y-auto">
-                      {selectedUser.transactions.length > 0 ? (
-                        selectedUser.transactions.map(transaction => {
-                          const typeInfo = getTransactionTypeInfo(transaction.type)
+                      {(userTransactions[selectedUser.id_nguoi_dung] || []).length > 0 ? (
+                        (userTransactions[selectedUser.id_nguoi_dung] || []).map(transaction => {
+                          const typeInfo = getTransactionTypeInfo(transaction.id_loai_giao_dich)
                           return (
-                            <div key={transaction.id} className="p-3 border border-gray-200 rounded-lg">
+                            <div key={transaction.id_giao_dich} className="p-3 border border-gray-200 rounded-lg">
                               <div className="flex items-center justify-between">
                                 <div className="flex-1">
-                                  <p className="text-sm font-medium text-gray-800">{transaction.content}</p>
-                                  <p className="text-xs text-gray-500 mt-1">{transaction.datetime}</p>
+                                  <p className="text-sm font-medium text-gray-800">{transaction.noi_dung}</p>
+                                  <p className="text-xs text-gray-500 mt-1">
+                                    {new Date(transaction.ngay_tao).toLocaleString('vi-VN')}
+                                  </p>
+                                  {transaction.is_merged && (
+                                    <p className="text-xs text-blue-600 mt-1">
+                                      ⚡ Giao dịch gộp từ nhiều bên
+                                    </p>
+                                  )}
                                 </div>
                                 <div className="flex items-center space-x-3">
                                   <span className={`px-2 py-1 rounded-lg text-xs font-medium border ${typeInfo.color}`}>
                                     {typeInfo.label}
                                   </span>
                                   <div className="text-right">
-                                    <p className="text-sm font-medium text-gray-800">{transaction.amount} VNĐ</p>
-                                    <p className="text-xs text-gray-500">{transaction.points} điểm</p>
+                                    <p className="text-sm font-medium text-gray-800">
+                                      {parseFloat(transaction.so_tien || 0).toLocaleString('vi-VN')} VNĐ
+                                    </p>
+                                    <p className="text-xs text-gray-500">{parseFloat(transaction.diem || 0).toFixed(2)} điểm</p>
                                   </div>
                                 </div>
                               </div>
@@ -555,18 +1020,22 @@ const UsersPage = () => {
 
                     {/* Schedules List */}
                     <div className="space-y-3 max-h-96 overflow-y-auto">
-                      {selectedUser.schedules.length > 0 ? (
-                        selectedUser.schedules.map(schedule => {
-                          const statusInfo = getStatusInfo(schedule.status)
+                      {(userSchedules[selectedUser.id_nguoi_dung] || []).length > 0 ? (
+                        (userSchedules[selectedUser.id_nguoi_dung] || []).map(schedule => {
+                          const statusInfo = getStatusInfo(schedule.trang_thai)
                           return (
-                            <div key={schedule.id} className="p-3 border border-gray-200 rounded-lg">
+                            <div key={schedule.id_lich_xe} className="p-3 border border-gray-200 rounded-lg">
                               <div className="flex items-center justify-between">
                                 <div className="flex-1">
-                                  <p className="text-sm font-medium text-gray-800">{schedule.route}</p>
-                                  <p className="text-xs text-gray-500 mt-1">
-                                    {schedule.departureTime} - {schedule.arrivalTime}
+                                  <p className="text-sm font-medium text-gray-800">
+                                    Lịch xe #{schedule.id_lich_xe}
                                   </p>
-                                  <p className="text-xs text-gray-500">Biển số: {schedule.vehicleNumber}</p>
+                                  <p className="text-xs text-gray-500 mt-1">
+                                    {new Date(schedule.thoi_gian_bat_dau_don).toLocaleString('vi-VN')} - {new Date(schedule.thoi_gian_ket_thuc_don).toLocaleString('vi-VN')}
+                                  </p>
+                                  <p className="text-xs text-gray-500">
+                                    Loại xe: {schedule.id_loai_xe} chỗ | Loại tuyến: {schedule.id_loai_tuyen}
+                                  </p>
                                 </div>
                                 <span className={`px-2 py-1 rounded-lg text-xs font-medium border ${statusInfo.color}`}>
                                   {statusInfo.label}

@@ -308,16 +308,16 @@ class TransactionController {
             console.log('Receiver found:', { id: receiver.id_nguoi_dung, balance: receiver.so_du, points: receiver.diem })
             
             // Tính toán số dư và điểm mới
-            const moneyChange = so_tien || 0;
-            const pointsChange = calculatedPoints || 0;
+            const moneyChange = parseFloat(so_tien) || 0;
+            const pointsChange = parseFloat(calculatedPoints) || 0;
             
             // Người san BỊ TRỪ tiền và điểm
             const newSenderBalance = parseFloat(sender.so_du) - parseFloat(moneyChange);
-            const newSenderPoints = parseInt(sender.diem) - parseInt(pointsChange);
+            const newSenderPoints = parseFloat(sender.diem) - parseFloat(pointsChange);
             
             // Người nhận san ĐƯỢC CỘNG tiền và điểm
             const newReceiverBalance = parseFloat(receiver.so_du) + parseFloat(moneyChange);
-            const newReceiverPoints = parseInt(receiver.diem) + parseInt(pointsChange);
+            const newReceiverPoints = parseFloat(receiver.diem) + parseFloat(pointsChange);
             
             console.log('=== KẾT QUẢ TÍNH TOÁN SAN CHO ===')
             console.log(`Người san (BỊ TRỪ):`)
@@ -573,13 +573,13 @@ class TransactionController {
           details: {
             sender: {
               action: 'BỊ TRỪ',
-              moneyChange: so_tien || 0,
-              pointsChange: calculatedPoints || 0
+              moneyChange: parseFloat(so_tien) || 0,
+              pointsChange: parseFloat(calculatedPoints) || 0
             },
             receiver: {
               action: 'ĐƯỢC CỘNG',
-              moneyChange: so_tien || 0,
-              pointsChange: calculatedPoints || 0
+              moneyChange: parseFloat(so_tien) || 0,
+              pointsChange: parseFloat(calculatedPoints) || 0
             }
           }
         };
@@ -763,8 +763,8 @@ class TransactionController {
           console.log('Receiver found:', { id: receiver.id_nguoi_dung, balance: receiver.so_du, points: receiver.diem })
           
           // Tính toán số dư và điểm mới dựa trên loại giao dịch
-          const moneyChange = transaction.so_tien || 0;
-          const pointsChange = transaction.diem || 0;
+          const moneyChange = parseFloat(transaction.so_tien) || 0;
+          const pointsChange = parseFloat(transaction.diem) || 0;
           
           let newSenderBalance, newSenderPoints, newReceiverBalance, newReceiverPoints;
           let senderAction, receiverAction;
@@ -772,19 +772,19 @@ class TransactionController {
           if (transaction.id_loai_giao_dich === 1) { // Giao lịch
             // Người giao lịch ĐƯỢC CỘNG tiền và điểm
             newSenderBalance = parseFloat(sender.so_du) + parseFloat(moneyChange);
-            newSenderPoints = parseInt(sender.diem) + parseInt(pointsChange);
+            newSenderPoints = parseFloat(sender.diem) + parseFloat(pointsChange);
             // Người nhận lịch BỊ TRỪ tiền và điểm
             newReceiverBalance = parseFloat(receiver.so_du) - parseFloat(moneyChange);
-            newReceiverPoints = parseInt(receiver.diem) - parseInt(pointsChange);
+            newReceiverPoints = parseFloat(receiver.diem) - parseFloat(pointsChange);
             senderAction = 'ĐƯỢC CỘNG';
             receiverAction = 'BỊ TRỪ';
           } else if (transaction.id_loai_giao_dich === 4) { // San cho
             // Người san BỊ TRỪ tiền và điểm
             newSenderBalance = parseFloat(sender.so_du) - parseFloat(moneyChange);
-            newSenderPoints = parseInt(sender.diem) - parseInt(pointsChange);
+            newSenderPoints = parseFloat(sender.diem) - parseFloat(pointsChange);
             // Người nhận san ĐƯỢC CỘNG tiền và điểm
             newReceiverBalance = parseFloat(receiver.so_du) + parseFloat(moneyChange);
-            newReceiverPoints = parseInt(receiver.diem) + parseInt(pointsChange);
+            newReceiverPoints = parseFloat(receiver.diem) + parseFloat(pointsChange);
             senderAction = 'BỊ TRỪ';
             receiverAction = 'ĐƯỢC CỘNG';
           }
@@ -833,9 +833,9 @@ class TransactionController {
       try {
         let notificationMessage;
         if (transaction.id_loai_giao_dich === 1) { // Giao lịch
-          notificationMessage = `Lịch xe của bạn đã được xác nhận bởi ${req.user.ten_dang_nhap}. Bạn đã nhận ${transaction.so_tien ? transaction.so_tien.toLocaleString('vi-VN') : 0} VNĐ và ${transaction.diem || 0} điểm.`;
+          notificationMessage = `Lịch xe của bạn đã được xác nhận bởi ${req.user.ten_dang_nhap}. Bạn đã nhận ${transaction.so_tien ? transaction.so_tien.toLocaleString('vi-VN') : 0} VNĐ và ${parseFloat(transaction.diem) || 0} điểm.`;
         } else if (transaction.id_loai_giao_dich === 4) { // San cho
-          notificationMessage = `Giao dịch san cho của bạn đã được xác nhận bởi ${req.user.ten_dang_nhap}. Bạn đã chuyển ${transaction.so_tien ? transaction.so_tien.toLocaleString('vi-VN') : 0} VNĐ và ${transaction.diem || 0} điểm.`;
+          notificationMessage = `Giao dịch san cho của bạn đã được xác nhận bởi ${req.user.ten_dang_nhap}. Bạn đã chuyển ${transaction.so_tien ? transaction.so_tien.toLocaleString('vi-VN') : 0} VNĐ và ${parseFloat(transaction.diem) || 0} điểm.`;
         }
         
         const notificationData = {
@@ -1160,36 +1160,86 @@ class TransactionController {
       if (relatedTransactions && relatedTransactions.length > 0) {
         console.log('Found related transactions:', relatedTransactions.length)
         
-        // Xử lý hoàn tiền và điểm cho các giao dịch liên quan
+        // Tạo giao dịch hủy lịch để hoàn tiền/điểm
+        console.log('=== TẠO GIAO DỊCH HỦY LỊCH ===')
+        
         for (const transaction of relatedTransactions) {
           if (transaction.trang_thai === 'hoan_thanh') {
             console.log('Processing refund for transaction:', transaction.id_giao_dich)
             
-            // Hoàn tiền và điểm
-            const sender = await User.getById(transaction.id_nguoi_gui);
-            const receiver = await User.getById(transaction.id_nguoi_nhan);
+            // Tạo giao dịch hủy lịch 1: Trừ tiền/điểm người gửi (Admin)
+            const cancelSenderData = {
+              id_loai_giao_dich: 3, // Hủy lịch
+              id_nguoi_gui: schedule.id_nguoi_tao, // Admin - LẤY TỪ LỊCH XE, KHÔNG PHẢI TỪ GIAO DỊCH!
+              id_nguoi_nhan: null, // Không có người nhận
+              id_nhom: transaction.id_nhom,
+              id_lich_xe: schedule.id_lich_xe,
+              so_tien: transaction.so_tien ? -parseFloat(transaction.so_tien) : null, // Đảo dấu để trừ
+              diem: transaction.diem ? -parseFloat(transaction.diem) : null, // Đảo dấu để trừ
+              noi_dung: `Hủy lịch xe - Trừ tiền/điểm của người gửi`,
+              trang_thai: 'hoan_thanh'
+            };
             
-            if (sender && receiver) {
-              // Hoàn lại tiền và điểm cho người gửi
-              const refundAmount = transaction.so_tien || 0;
-              const refundPoints = transaction.diem || 0;
+            // Tạo giao dịch hủy lịch 2: Hoàn tiền/điểm người nhận (Tài xế)
+            const cancelReceiverData = {
+              id_loai_giao_dich: 3, // Hủy lịch
+              id_nguoi_gui: null, // Không có người gửi
+              id_nguoi_nhan: schedule.id_nguoi_nhan, // Tài xế - LẤY TỪ LỊCH XE!
+              id_nhom: transaction.id_nhom,
+              id_lich_xe: schedule.id_lich_xe,
+              so_tien: transaction.so_tien ? parseFloat(transaction.so_tien) : null, // Giữ nguyên dấu để cộng
+              diem: transaction.diem ? parseFloat(transaction.diem) : null, // Giữ nguyên dấu để cộng
+              noi_dung: `Hủy lịch xe - Cộng tiền/điểm cho người nhận`,
+              trang_thai: 'hoan_thanh'
+            };
+            
+            console.log('=== LOG GIAO DỊCH HỦY LỊCH ===')
+            console.log('Giao dịch hủy 1 (trừ Admin):', cancelSenderData)
+            console.log('Giao dịch hủy 2 (hoàn Tài xế):', cancelReceiverData)
+            console.log('🔍 CHI TIẾT ID NGƯỜI GỬI/NHẬN:')
+            console.log(`  - Giao dịch hủy 1: id_nguoi_gui = ${cancelSenderData.id_nguoi_gui}, id_nguoi_nhan = ${cancelSenderData.id_nguoi_nhan}`)
+            console.log(`  - Giao dịch hủy 2: id_nguoi_gui = ${cancelReceiverData.id_nguoi_gui}, id_nguoi_nhan = ${cancelReceiverData.id_nguoi_nhan}`)
+            console.log('=== KẾT THÚC LOG ===')
+            
+            try {
+              // Tạo giao dịch hủy lịch 1
+              const cancelSenderId = await Transaction.create(cancelSenderData);
+              console.log('✅ Giao dịch hủy lịch 1 (trừ Admin) được tạo với ID:', cancelSenderId)
               
-              const newSenderBalance = parseFloat(sender.so_du) + parseFloat(refundAmount);
-              const newSenderPoints = parseInt(sender.diem) + parseInt(refundPoints);
+              // Tạo giao dịch hủy lịch 2
+              const cancelReceiverId = await Transaction.create(cancelReceiverData);
+              console.log('✅ Giao dịch hủy lịch 2 (hoàn Tài xế) được tạo với ID:', cancelReceiverId)
               
-              // Hoàn lại tiền và điểm cho người nhận
-              const newReceiverBalance = parseFloat(receiver.so_du) - parseFloat(refundAmount);
-              const newReceiverPoints = parseInt(receiver.diem) - parseInt(refundPoints);
+              // Cập nhật số dư và điểm cho Admin (bị trừ)
+              const sender = await User.getById(transaction.id_nguoi_gui);
+              if (sender) {
+              const refundAmount = parseFloat(transaction.so_tien) || 0;
+              const refundPoints = parseFloat(transaction.diem) || 0;
               
-              console.log('=== HOÀN TIỀN VÀ ĐIỂM ===')
-              console.log(`Người gửi (được hoàn): +${refundAmount} VNĐ, +${refundPoints} điểm`)
-              console.log(`Người nhận (bị trừ): -${refundAmount} VNĐ, -${refundPoints} điểm`)
+                const newSenderBalance = parseFloat(sender.so_du) - parseFloat(refundAmount);
+                const newSenderPoints = parseFloat(sender.diem) - parseFloat(refundPoints);
+                
+                await User.updateBalanceAndPoints(transaction.id_nguoi_gui, newSenderBalance, newSenderPoints);
+                console.log(`✅ Admin bị trừ: -${refundAmount} VNĐ, -${refundPoints} điểm`)
+              }
               
-              // Cập nhật số dư và điểm
-              await User.updateBalanceAndPoints(transaction.id_nguoi_gui, newSenderBalance, newSenderPoints);
+              // Cập nhật số dư và điểm cho Tài xế (được hoàn)
+              const receiver = await User.getById(transaction.id_nguoi_nhan);
+              if (receiver) {
+                const refundAmount = parseFloat(transaction.so_tien) || 0;
+                const refundPoints = parseFloat(transaction.diem) || 0;
+                
+                const newReceiverBalance = parseFloat(receiver.so_du) + parseFloat(refundAmount);
+                const newReceiverPoints = parseFloat(receiver.diem) + parseFloat(refundPoints);
+                
               await User.updateBalanceAndPoints(transaction.id_nguoi_nhan, newReceiverBalance, newReceiverPoints);
+                console.log(`✅ Tài xế được hoàn: +${refundAmount} VNĐ, +${refundPoints} điểm`)
+              }
               
-              console.log('✅ Hoàn tiền và điểm thành công')
+              console.log('✅ Hoàn tiền và điểm thành công thông qua giao dịch hủy lịch')
+            } catch (cancelError) {
+              console.error('❌ Lỗi khi tạo giao dịch hủy lịch:', cancelError)
+              // Không dừng quá trình nếu tạo giao dịch hủy thất bại
             }
           }
         }

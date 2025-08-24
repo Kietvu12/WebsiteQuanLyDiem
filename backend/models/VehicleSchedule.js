@@ -6,12 +6,13 @@ class VehicleSchedule {
     try {
       const [rows] = await pool.execute(
         `SELECT lx.*, lxe.ten_loai as ten_loai_xe, lxe.so_cho, lt.ten_loai as ten_loai_tuyen, lt.la_khu_hoi,
-                nd.ho_ten as ten_nguoi_tao, n.ten_nhom
+                nd.ho_ten as ten_nguoi_tao, n.ten_nhom, nn.ho_ten as ten_nguoi_nhan
          FROM lich_xe lx
          INNER JOIN loai_xe lxe ON lx.id_loai_xe = lxe.id_loai_xe
          INNER JOIN loai_tuyen lt ON lx.id_loai_tuyen = lt.id_loai_tuyen
          INNER JOIN nguoi_dung nd ON lx.id_nguoi_tao = nd.id_nguoi_dung
          INNER JOIN nhom n ON lx.id_nhom = n.id_nhom
+         LEFT JOIN nguoi_dung nn ON lx.id_nguoi_nhan = nn.id_nguoi_dung
          ORDER BY lx.ngay_tao DESC`
       );
       return rows;
@@ -47,12 +48,13 @@ class VehicleSchedule {
     try {
       const [rows] = await pool.execute(
         `SELECT lx.*, lxe.ten_loai as ten_loai_xe, lxe.so_cho, lt.ten_loai as ten_loai_tuyen, lt.la_khu_hoi,
-                nd.ho_ten as ten_nguoi_tao, n.ten_nhom
+                nd.ho_ten as ten_nguoi_tao, n.ten_nhom, nn.ho_ten as ten_nguoi_nhan
          FROM lich_xe lx
          INNER JOIN loai_xe lxe ON lx.id_loai_xe = lxe.id_loai_xe
          INNER JOIN loai_tuyen lt ON lx.id_loai_tuyen = lt.id_loai_tuyen
          INNER JOIN nguoi_dung nd ON lx.id_nguoi_tao = nd.id_nguoi_dung
          INNER JOIN nhom n ON lx.id_nhom = n.id_nhom
+         LEFT JOIN nguoi_dung nn ON lx.id_nguoi_nhan = nn.id_nguoi_dung
          WHERE lx.id_lich_xe = ?`,
         [id]
       );
@@ -67,12 +69,13 @@ class VehicleSchedule {
     try {
       const [rows] = await pool.execute(
         `SELECT lx.*, lxe.ten_loai as ten_loai_xe, lxe.so_cho, lt.ten_loai as ten_loai_tuyen, lt.la_khu_hoi,
-                nd.ho_ten as ten_nguoi_tao, n.ten_nhom
+                nd.ho_ten as ten_nguoi_tao, n.ten_nhom, nn.ho_ten as ten_nguoi_nhan
          FROM lich_xe lx
          INNER JOIN loai_xe lxe ON lx.id_loai_xe = lxe.id_loai_xe
          INNER JOIN loai_tuyen lt ON lx.id_loai_tuyen = lt.id_loai_tuyen
          INNER JOIN nguoi_dung nd ON lx.id_nguoi_tao = nd.id_nguoi_dung
          INNER JOIN nhom n ON lx.id_nhom = n.id_nhom
+         LEFT JOIN nguoi_dung nn ON lx.id_nguoi_nhan = nn.id_nguoi_dung
          WHERE lx.id_nhom = ?
          ORDER BY lx.ngay_tao DESC`,
         [groupId]
@@ -88,12 +91,13 @@ class VehicleSchedule {
     try {
       const [rows] = await pool.execute(
         `SELECT lx.*, lxe.ten_loai as ten_loai_xe, lxe.so_cho, lt.ten_loai as ten_loai_tuyen, lt.la_khu_hoi,
-                nd.ho_ten as ten_nguoi_tao, n.ten_nhom
+                nd.ho_ten as ten_nguoi_tao, n.ten_nhom, nn.ho_ten as ten_nguoi_nhan
          FROM lich_xe lx
          INNER JOIN loai_xe lxe ON lx.id_loai_xe = lxe.id_loai_xe
          INNER JOIN loai_tuyen lt ON lx.id_loai_tuyen = lt.id_loai_tuyen
          INNER JOIN nguoi_dung nd ON lx.id_nguoi_tao = nd.id_nguoi_dung
          INNER JOIN nhom n ON lx.id_nhom = n.id_nhom
+         LEFT JOIN nguoi_dung nn ON lx.id_nguoi_nhan = nn.id_nguoi_dung
          WHERE lx.id_nguoi_tao = ?
          ORDER BY lx.ngay_tao DESC`,
         [userId]
@@ -109,12 +113,13 @@ class VehicleSchedule {
     try {
       const [rows] = await pool.execute(
         `SELECT lx.*, lxe.ten_loai as ten_loai_xe, lxe.so_cho, lt.ten_loai as ten_loai_tuyen, lt.la_khu_hoi,
-                nd.ho_ten as ten_nguoi_tao, n.ten_nhom
+                nd.ho_ten as ten_nguoi_tao, n.ten_nhom, nn.ho_ten as ten_nguoi_nhan
          FROM lich_xe lx
          INNER JOIN loai_xe lxe ON lx.id_loai_xe = lxe.id_loai_xe
          INNER JOIN loai_tuyen lt ON lx.id_loai_tuyen = lt.id_loai_tuyen
          INNER JOIN nguoi_dung nd ON lx.id_nguoi_tao = nd.id_nguoi_dung
          INNER JOIN nhom n ON lx.id_nhom = n.id_nhom
+         LEFT JOIN nguoi_dung nn ON lx.id_nguoi_nhan = nn.id_nguoi_dung
          WHERE lx.trang_thai = ?
          ORDER BY lx.ngay_tao DESC`,
         [status]
@@ -130,12 +135,13 @@ class VehicleSchedule {
     try {
       const [rows] = await pool.execute(
         `SELECT lx.*, lxe.ten_loai as ten_loai_xe, lxe.so_cho, lt.ten_loai as ten_loai_tuyen, lt.la_khu_hoi,
-                nd.ho_ten as ten_nguoi_tao, n.ten_nhom
+                nd.ho_ten as ten_nguoi_tao, n.ten_nhom, nn.ho_ten as ten_nguoi_nhan
          FROM lich_xe lx
          INNER JOIN loai_xe lxe ON lx.id_loai_xe = lxe.id_loai_xe
          INNER JOIN loai_tuyen lt ON lx.id_loai_tuyen = lt.id_loai_tuyen
          INNER JOIN nguoi_dung nd ON lx.id_nguoi_tao = nd.id_nguoi_dung
          INNER JOIN nhom n ON lx.id_nhom = n.id_nhom
+         LEFT JOIN nguoi_dung nn ON lx.id_nguoi_nhan = nn.id_nguoi_dung
          WHERE DATE(lx.ngay_tao) = ?
          ORDER BY lx.ngay_tao DESC`,
         [date]
@@ -292,12 +298,13 @@ class VehicleSchedule {
     try {
       const [rows] = await pool.execute(
         `SELECT lx.*, lxe.ten_loai as ten_loai_xe, lxe.so_cho, lt.ten_loai as ten_loai_tuyen, lt.la_khu_hoi,
-                nd.ho_ten as ten_nguoi_tao, n.ten_nhom
+                nd.ho_ten as ten_nguoi_tao, n.ten_nhom, nn.ho_ten as ten_nguoi_nhan
          FROM lich_xe lx
          INNER JOIN loai_xe lxe ON lx.id_loai_xe = lxe.id_loai_xe
          INNER JOIN loai_tuyen lt ON lx.id_loai_tuyen = lt.id_loai_tuyen
          INNER JOIN nguoi_dung nd ON lx.id_nguoi_tao = nd.id_nguoi_dung
          INNER JOIN nhom n ON lx.id_nhom = n.id_nhom
+         LEFT JOIN nguoi_dung nn ON lx.id_nguoi_nhan = nn.id_nguoi_dung
          WHERE lx.trang_thai = 'cho_xac_nhan'
          AND lx.thoi_gian_bat_dau_don BETWEEN NOW() AND DATE_ADD(NOW(), INTERVAL 1 HOUR)
          ORDER BY lx.thoi_gian_bat_dau_don ASC`
@@ -337,12 +344,13 @@ class VehicleSchedule {
     try {
       const [rows] = await pool.execute(
         `SELECT lx.*, lxe.ten_loai as ten_loai_xe, lxe.so_cho, lt.ten_loai as ten_loai_tuyen, lt.la_khu_hoi,
-                nd.ho_ten as ten_nguoi_tao, n.ten_nhom
+                nd.ho_ten as ten_nguoi_tao, n.ten_nhom, nn.ho_ten as ten_nguoi_nhan
          FROM lich_xe lx
          INNER JOIN loai_xe lxe ON lx.id_loai_xe = lxe.id_loai_xe
          INNER JOIN loai_tuyen lt ON lx.id_loai_tuyen = lt.id_loai_tuyen
          INNER JOIN nguoi_dung nd ON lx.id_nguoi_tao = nd.id_nguoi_dung
          INNER JOIN nhom n ON lx.id_nhom = n.id_nhom
+         LEFT JOIN nguoi_dung nn ON lx.id_nguoi_nhan = nn.id_nguoi_dung
          WHERE lx.trang_thai = 'hoan_thanh'
          ORDER BY lx.thoi_gian_bat_dau_don DESC`
       );

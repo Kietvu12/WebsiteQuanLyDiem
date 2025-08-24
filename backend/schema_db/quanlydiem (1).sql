@@ -49,7 +49,7 @@ CREATE TABLE `giao_dich` (
   `id_nhom` int(11) NOT NULL,
   `id_lich_xe` int(11) DEFAULT NULL,
   `so_tien` decimal(12,2) DEFAULT NULL,
-  `diem` int(11) DEFAULT NULL,
+  `diem` decimal(12,2) DEFAULT NULL,
   `noi_dung` text DEFAULT NULL,
   `trang_thai` enum('cho_xac_nhan','hoan_thanh','da_huy') DEFAULT 'cho_xac_nhan',
   `ngay_tao` timestamp NOT NULL DEFAULT current_timestamp(),
@@ -241,7 +241,7 @@ CREATE TABLE `nguoi_dung` (
   `so_dien_thoai` varchar(20) DEFAULT NULL,
   `dia_chi` text DEFAULT NULL,
   `so_du` decimal(12,2) DEFAULT 0.00,
-  `diem` int(11) DEFAULT 0,
+  `diem` decimal(12,2) DEFAULT 0.00,
   `la_admin` tinyint(1) DEFAULT 0,
   `ngay_tao` timestamp NOT NULL DEFAULT current_timestamp(),
   `ngay_cap_nhat` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()

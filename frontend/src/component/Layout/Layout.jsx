@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import ProtectedRoute from '../../components/ProtectedRoute'
 import Sidebar from './Sidebar'
@@ -11,11 +11,17 @@ import UsersPage from '../../page/UsersPage/UsersPage'
 import ReportsPage from '../../page/ReportsPage/ReportsPage'
 
 const Layout = () => {
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+
+  const toggleSidebar = () => {
+    setIsSidebarOpen(!isSidebarOpen)
+  }
+
   return (
     <div className="min-h-screen bg-gray-25">
-      <Sidebar />
-      <Header />
-      <div className="ml-72 pt-16 min-h-screen">
+      <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+      <Header onToggleSidebar={toggleSidebar} />
+      <div className="lg:ml-72 pt-16 min-h-screen">
         <div className="p-8">
           <Routes>
             {/* Các trang cơ bản - tất cả user đều truy cập được */}

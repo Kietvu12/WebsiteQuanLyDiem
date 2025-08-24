@@ -198,7 +198,7 @@ POST /api/transactions
   "id_nhom": 1,
   "id_lich_xe": 1,
   "so_tien": 500000,
-  "diem": 50,
+  "diem": 3.5,
   "noi_dung": "Giao lịch xe sân bay 8h sáng"
 }
 ```
@@ -442,3 +442,5 @@ npm start
 - Mật khẩu được hash bằng bcrypt
 - JWT token có thời hạn 24 giờ
 - Sử dụng connection pool để tối ưu database
+- **Điểm giao dịch**: Hỗ trợ số thập phân (ví dụ: 3.5 điểm) - không bị làm tròn
+- **Số tiền**: Hỗ trợ số thập phân với 2 chữ số sau dấu phẩy

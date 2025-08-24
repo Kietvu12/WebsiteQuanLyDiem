@@ -161,13 +161,13 @@ class User {
       
       // Chuyển đổi sang số nếu cần
       const numericBalance = parseFloat(so_du)
-      const numericPoints = parseInt(diem)
+      const numericPoints = parseFloat(diem)
       
       if (isNaN(numericBalance)) {
         throw new Error('Số dư phải là số hợp lệ')
       }
       if (isNaN(numericPoints)) {
-        throw new Error('Số điểm phải là số nguyên hợp lệ')
+        throw new Error('Số điểm phải là số hợp lệ')
       }
       
       console.log('User.updateBalanceAndPoints - Numeric balance:', numericBalance)
@@ -253,10 +253,10 @@ class User {
       }
       
       // Chuyển đổi sang số nếu cần
-      const numericPoints = parseInt(diem)
+      const numericPoints = parseFloat(diem)
       
       if (isNaN(numericPoints)) {
-        throw new Error('Số điểm phải là số nguyên hợp lệ')
+        throw new Error('Số điểm phải là số hợp lệ')
       }
       
       console.log('User.updatePoints - Numeric points:', numericPoints)

@@ -22,7 +22,27 @@ class Transaction {
          LEFT JOIN loai_tuyen lt ON lx.id_loai_tuyen = lt.id_loai_tuyen
          ORDER BY gd.ngay_tao DESC`
       );
-      return rows;
+      
+      // Gộp giao dịch hủy lịch
+      const processedRows = [];
+      const processedScheduleIds = new Set();
+      
+      for (const row of rows) {
+        if (row.id_loai_giao_dich === 3 && row.id_lich_xe && !processedScheduleIds.has(row.id_lich_xe)) {
+          // Tìm giao dịch hủy lịch gộp
+          const mergedTransaction = await this.getMergedCancelTransactions(row.id_lich_xe);
+          if (mergedTransaction) {
+            processedRows.push(mergedTransaction);
+            processedScheduleIds.add(row.id_lich_xe);
+          } else {
+            processedRows.push(row);
+          }
+        } else if (row.id_loai_giao_dich !== 3 || !row.id_lich_xe || !processedScheduleIds.has(row.id_lich_xe)) {
+          processedRows.push(row);
+        }
+      }
+      
+      return processedRows;
     } catch (error) {
       throw new Error(`Lỗi lấy danh sách giao dịch: ${error.message}`);
     }
@@ -79,7 +99,27 @@ class Transaction {
          ORDER BY gd.ngay_tao DESC`,
         [groupId]
       );
-      return rows;
+      
+      // Gộp giao dịch hủy lịch
+      const processedRows = [];
+      const processedScheduleIds = new Set();
+      
+      for (const row of rows) {
+        if (row.id_loai_giao_dich === 3 && row.id_lich_xe && !processedScheduleIds.has(row.id_lich_xe)) {
+          // Tìm giao dịch hủy lịch gộp
+          const mergedTransaction = await this.getMergedCancelTransactions(row.id_lich_xe);
+          if (mergedTransaction) {
+            processedRows.push(mergedTransaction);
+            processedScheduleIds.add(row.id_lich_xe);
+          } else {
+            processedRows.push(row);
+          }
+        } else if (row.id_loai_giao_dich !== 3 || !row.id_lich_xe || !processedScheduleIds.has(row.id_lich_xe)) {
+          processedRows.push(row);
+        }
+      }
+      
+      return processedRows;
     } catch (error) {
       throw new Error(`Lỗi lấy giao dịch theo nhóm: ${error.message}`);
     }
@@ -108,7 +148,27 @@ class Transaction {
          ORDER BY gd.ngay_tao DESC`,
         [userId]
       );
-      return rows;
+      
+      // Gộp giao dịch hủy lịch
+      const processedRows = [];
+      const processedScheduleIds = new Set();
+      
+      for (const row of rows) {
+        if (row.id_loai_giao_dich === 3 && row.id_lich_xe && !processedScheduleIds.has(row.id_lich_xe)) {
+          // Tìm giao dịch hủy lịch gộp
+          const mergedTransaction = await this.getMergedCancelTransactions(row.id_lich_xe);
+          if (mergedTransaction) {
+            processedRows.push(mergedTransaction);
+            processedScheduleIds.add(row.id_lich_xe);
+          } else {
+            processedRows.push(row);
+          }
+        } else if (row.id_loai_giao_dich !== 3 || !row.id_lich_xe || !processedScheduleIds.has(row.id_lich_xe)) {
+          processedRows.push(row);
+        }
+      }
+      
+      return processedRows;
     } catch (error) {
       throw new Error(`Lỗi lấy giao dịch theo người gửi: ${error.message}`);
     }
@@ -137,7 +197,27 @@ class Transaction {
          ORDER BY gd.ngay_tao DESC`,
         [userId]
       );
-      return rows;
+      
+      // Gộp giao dịch hủy lịch
+      const processedRows = [];
+      const processedScheduleIds = new Set();
+      
+      for (const row of rows) {
+        if (row.id_loai_giao_dich === 3 && row.id_lich_xe && !processedScheduleIds.has(row.id_lich_xe)) {
+          // Tìm giao dịch hủy lịch gộp
+          const mergedTransaction = await this.getMergedCancelTransactions(row.id_lich_xe);
+          if (mergedTransaction) {
+            processedRows.push(mergedTransaction);
+            processedScheduleIds.add(row.id_lich_xe);
+          } else {
+            processedRows.push(row);
+          }
+        } else if (row.id_loai_giao_dich !== 3 || !row.id_lich_xe || !processedScheduleIds.has(row.id_lich_xe)) {
+          processedRows.push(row);
+        }
+      }
+      
+      return processedRows;
     } catch (error) {
       throw new Error(`Lỗi lấy giao dịch theo người nhận: ${error.message}`);
     }
@@ -418,6 +498,73 @@ class Transaction {
       return null;
     } catch (error) {
       throw new Error(`Lỗi lấy giao dịch theo lịch xe và loại: ${error.message}`);
+    }
+  }
+
+  // Gộp 2 giao dịch hủy lịch có chung id_lich_xe
+  static async getMergedCancelTransactions(scheduleId) {
+    try {
+      const [rows] = await pool.execute(
+        `SELECT gd.*, lg.ten_loai as ten_loai_giao_dich, lg.yeu_cau_xac_nhan,
+                ng.ho_ten as ten_nguoi_gui, nn.ho_ten as ten_nguoi_nhan,
+                n.ten_nhom, lx.id_lich_xe
+         FROM giao_dich gd
+         INNER JOIN loai_giao_dich lg ON gd.id_loai_giao_dich = lg.id_loai_giao_dich
+         LEFT JOIN nguoi_dung ng ON gd.id_nguoi_gui = ng.id_nguoi_dung
+         LEFT JOIN nguoi_dung nn ON gd.id_nguoi_nhan = nn.id_nguoi_dung
+         INNER JOIN nhom n ON gd.id_nhom = n.id_nhom
+         LEFT JOIN lich_xe lx ON gd.id_lich_xe = lx.id_lich_xe
+         WHERE gd.id_lich_xe = ? AND gd.id_loai_giao_dich = 3
+         ORDER BY gd.ngay_tao ASC`,
+        [scheduleId]
+      );
+      
+      if (rows.length === 2) {
+        // Gộp 2 giao dịch hủy lịch
+        const [transaction1, transaction2] = rows;
+        
+        // Xác định người gửi và người nhận từ 2 giao dịch
+        const nguoiGui = transaction1.id_nguoi_gui || transaction2.id_nguoi_gui;
+        const nguoiNhan = transaction1.id_nguoi_nhan || transaction2.id_nguoi_nhan;
+        
+        // Lấy tên người dùng
+        const [nguoiGuiInfo] = await pool.execute(
+          'SELECT ho_ten FROM nguoi_dung WHERE id_nguoi_dung = ?',
+          [nguoiGui]
+        );
+        
+        const [nguoiNhanInfo] = await pool.execute(
+          'SELECT ho_ten FROM nguoi_dung WHERE id_nguoi_dung = ?',
+          [nguoiNhan]
+        );
+        
+        // Tạo giao dịch gộp với đầy đủ thông tin
+        const mergedTransaction = {
+          id_giao_dich: `merged_${transaction1.id_giao_dich}_${transaction2.id_giao_dich}`,
+          id_loai_giao_dich: 3,
+          id_nguoi_gui: nguoiGui,
+          id_nguoi_nhan: nguoiNhan,
+          id_nhom: transaction1.id_nhom,
+          id_lich_xe: scheduleId,
+          so_tien: Math.abs(transaction1.so_tien),
+          diem: Math.abs(transaction1.diem),
+          noi_dung: `Hủy lịch xe #${scheduleId} - ${nguoiGuiInfo[0]?.ho_ten || 'N/A'} bị trừ và ${nguoiNhanInfo[0]?.ho_ten || 'N/A'} được cộng`,
+          trang_thai: 'hoan_thanh',
+          ngay_tao: transaction1.ngay_tao,
+          ten_loai_giao_dich: 'Hủy lịch xe',
+          ten_nguoi_gui: nguoiGuiInfo[0]?.ho_ten || 'N/A',
+          ten_nguoi_nhan: nguoiNhanInfo[0]?.ho_ten || 'N/A',
+          ten_nhom: transaction1.ten_nhom,
+          is_merged: true,
+          original_transactions: [transaction1, transaction2]
+        };
+        
+        return mergedTransaction;
+      }
+      
+      return null;
+    } catch (error) {
+      throw new Error(`Lỗi gộp giao dịch hủy lịch: ${error.message}`);
     }
   }
 }

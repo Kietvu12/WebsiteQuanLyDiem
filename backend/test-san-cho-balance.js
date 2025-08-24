@@ -36,16 +36,16 @@ function testSanChoBalanceUpdate(sender, receiver, transaction) {
   console.log('Người nhận san (trước):', { id: receiver.id_nguoi_dung, balance: receiver.so_du, points: receiver.diem })
   
   // Tính toán số dư và điểm mới
-  const moneyChange = transaction.so_tien || 0;
-  const pointsChange = transaction.diem || 0;
+          const moneyChange = parseFloat(transaction.so_tien) || 0;
+          const pointsChange = parseFloat(transaction.diem) || 0;
   
   // Người san BỊ TRỪ tiền và điểm
   const newSenderBalance = parseFloat(sender.so_du) - parseFloat(moneyChange);
-  const newSenderPoints = parseInt(sender.diem) - parseInt(pointsChange);
+          const newSenderPoints = parseFloat(sender.diem) - parseFloat(pointsChange);
   
   // Người nhận san ĐƯỢC CỘNG tiền và điểm
   const newReceiverBalance = parseFloat(receiver.so_du) + parseFloat(moneyChange);
-  const newReceiverPoints = parseInt(receiver.diem) + parseInt(pointsChange);
+          const newReceiverPoints = parseFloat(receiver.diem) + parseFloat(pointsChange);
   
   console.log('\n=== KẾT QUẢ TÍNH TOÁN ===')
   console.log(`Người san (BỊ TRỪ):`)

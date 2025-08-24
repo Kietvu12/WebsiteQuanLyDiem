@@ -1,210 +1,582 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { 
-  SearchOutlined,
-  PlusOutlined,
-  TeamOutlined,
-  TransactionOutlined,
-  CarOutlined,
-  DollarOutlined,
-  UserOutlined,
-  EditOutlined,
-  DeleteOutlined,
-  FileTextOutlined,
-  CalendarOutlined,
-  FilterOutlined,
-  CloseOutlined,
-  ArrowRightOutlined,
-  EyeOutlined
+  SearchOutlined, PlusOutlined, TeamOutlined, TransactionOutlined,
+  CarOutlined, DollarOutlined, UserOutlined, EditOutlined,
+  DeleteOutlined, FileTextOutlined, LoadingOutlined, ExclamationCircleOutlined
 } from '@ant-design/icons'
+import { groupService } from '../../services/groupService'
+import { transactionService } from '../../services/transactionService'
+import { vehicleScheduleService } from '../../services/vehicleScheduleService'
+import { useAuth } from '../../contexts/AuthContext'
 
 const GroupsPage = () => {
+  const { user, isAuthenticated } = useAuth()
   const [searchGroup, setSearchGroup] = useState('')
   const [selectedGroup, setSelectedGroup] = useState(null)
   const [selectedMember, setSelectedMember] = useState(null)
   const [activeTab, setActiveTab] = useState('transactions')
-  const [dateRange, setDateRange] = useState({
-    startDate: '',
-    endDate: ''
+  
+  // State cho API
+  const [groups, setGroups] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState(null)
+  const [groupMembers, setGroupMembers] = useState({})
+  const [groupTransactions, setGroupTransactions] = useState({})
+  const [groupSchedules, setGroupSchedules] = useState({})
+  const [availableUsers, setAvailableUsers] = useState([])
+  
+  // State cho modal
+  const [showCreateModal, setShowCreateModal] = useState(false)
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [showAddMemberModal, setShowAddMemberModal] = useState(false)
+  const [showUserDetailModal, setShowUserDetailModal] = useState(false)
+  const [editingGroup, setEditingGroup] = useState(null)
+  const [selectedUserDetail, setSelectedUserDetail] = useState(null)
+  const [newGroupData, setNewGroupData] = useState({
+    ten_nhom: '',
+    mo_ta: '',
+    memberIds: []
   })
-  const [transactionType, setTransactionType] = useState('all')
-  const [scheduleStatus, setScheduleStatus] = useState('all')
+  const [newMemberData, setNewMemberData] = useState({
+    userId: '',
+    groupId: ''
+  })
+  
+  // State cho filter user detail - riêng cho từng tab
+  const [transactionFilters, setTransactionFilters] = useState({
+    searchText: '',
+    senderName: '',
+    transactionType: 'all',
+    startDate: '',
+    endDate: '',
+    status: 'all'
+  })
+  
+  const [scheduleFilters, setScheduleFilters] = useState({
+    searchText: '',
+    vehicleType: 'all',
+    routeType: 'all',
+    startDate: '',
+    endDate: '',
+    status: 'all'
+  })
 
-  const groups = [
-    {
-      id: 1,
-      name: 'Nhóm Vận chuyển 1',
-      transactionCount: 45,
-      totalAmount: '15,500,000',
-      totalPoints: 1550,
-      members: [
-        {
-          id: 1,
-          name: 'Nguyễn Văn A',
-          vehicleScheduleCount: 12,
-          transactionCount: 15,
-          transactions: [
-            {
-              id: 1,
-              type: 'nhan_lich',
-              content: 'Nhận lịch xe Hà Nội - TP.HCM',
-              amount: '500,000',
-              points: 50,
-              datetime: '2024-01-15 08:30',
-              status: 'hoan_thanh'
-            },
-            {
-              id: 2,
-              type: 'giao_lich',
-              content: 'Giao lịch xe TP.HCM - Đà Nẵng',
-              amount: '750,000',
-              points: 75,
-              datetime: '2024-01-15 09:15',
-              status: 'da_xac_nhan'
-            }
-          ],
-          schedules: [
-            {
-              id: 1,
-              route: 'Hà Nội - TP.HCM',
-              departureTime: '2024-01-15 08:00',
-              arrivalTime: '2024-01-16 08:00',
-              status: 'hoan_thanh',
-              vehicleNumber: '29A-12345'
-            },
-            {
-              id: 2,
-              route: 'TP.HCM - Đà Nẵng',
-              departureTime: '2024-01-16 09:00',
-              arrivalTime: '2024-01-16 18:00',
-              status: 'dang_chay',
-              vehicleNumber: '51B-67890'
-            }
-          ]
+  // Fetch tất cả nhóm
+  const fetchGroups = async () => {
+    if (!isAuthenticated) return
+    
+    setLoading(true)
+    setError(null)
+    try {
+      const token = localStorage.getItem('authToken')
+      const response = await groupService.getAllGroups(token)
+      
+      if (response.success) {
+        setGroups(response.data.groups || response.data || [])
+      } else {
+        setError(response.message || 'Không thể lấy danh sách nhóm')
+      }
+    } catch (error) {
+      console.error('Error fetching groups:', error)
+      setError(error.message || 'Có lỗi xảy ra khi tải danh sách nhóm')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Fetch danh sách người dùng có sẵn
+  const fetchAvailableUsers = async () => {
+    if (!isAuthenticated) return
+    
+    try {
+      const token = localStorage.getItem('authToken')
+      const response = await fetch('http://localhost:5000/api/users', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        }
+      })
+      
+      const data = await response.json()
+      
+      if (response.ok && data.success) {
+        setAvailableUsers(data.data.users || data.data || [])
+      }
+    } catch (error) {
+      console.error('Error fetching available users:', error)
+    }
+  }
+
+  // Fetch thành viên của nhóm
+  const fetchGroupMembers = async (groupId) => {
+    if (!isAuthenticated || !groupId) return
+    
+    try {
+      const token = localStorage.getItem('authToken')
+      const response = await groupService.getGroupMembers(token, groupId)
+      
+      if (response.success) {
+        setGroupMembers(prev => ({
+          ...prev,
+          [groupId]: response.data.members || response.data || []
+        }))
+      }
+    } catch (error) {
+      console.error('Error fetching group members:', error)
+    }
+  }
+
+  // Fetch giao dịch của nhóm
+  const fetchGroupTransactions = async (groupId) => {
+    if (!isAuthenticated || !groupId) return
+    
+    try {
+      const token = localStorage.getItem('authToken')
+      const response = await transactionService.getAllTransactions(token)
+      
+      if (response.success) {
+        const groupTransactions = (response.data.transactions || response.data || [])
+          .filter(transaction => transaction.id_nhom === groupId)
+        
+        setGroupTransactions(prev => ({
+          ...prev,
+          [groupId]: groupTransactions
+        }))
+      }
+    } catch (error) {
+      console.error('Error fetching group transactions:', error)
+    }
+  }
+
+  // Fetch lịch xe của nhóm
+  const fetchGroupSchedules = async (groupId) => {
+    if (!isAuthenticated || !groupId) return
+    
+    try {
+      const token = localStorage.getItem('authToken')
+      const response = await vehicleScheduleService.getSchedulesByGroup(token, groupId)
+      
+      if (response.success) {
+        setGroupSchedules(prev => ({
+          ...prev,
+          [groupId]: response.data.schedules || response.data || []
+        }))
+      }
+    } catch (error) {
+      console.error('Error fetching group schedules:', error)
+    }
+  }
+
+  // Tạo nhóm mới
+  const handleCreateGroup = async () => {
+    if (!newGroupData.ten_nhom.trim()) {
+      setError('Tên nhóm không được để trống')
+      return
+    }
+    
+    setLoading(true)
+    try {
+      const token = localStorage.getItem('authToken')
+      const response = await fetch('http://localhost:5000/api/groups', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
         },
-        {
-          id: 2,
-          name: 'Lê Văn C',
-          vehicleScheduleCount: 8,
-          transactionCount: 10,
-          transactions: [
-            {
-              id: 3,
-              type: 'san_cho',
-              content: 'San cho xe Đà Nẵng - Huế',
-              amount: '300,000',
-              points: 30,
-              datetime: '2024-01-15 10:00',
-              status: 'hoan_thanh'
-            }
-          ],
-          schedules: [
-            {
-              id: 3,
-              route: 'Đà Nẵng - Huế',
-              departureTime: '2024-01-15 10:00',
-              arrivalTime: '2024-01-15 12:00',
-              status: 'hoan_thanh',
-              vehicleNumber: '43C-11111'
-            }
-          ]
+        body: JSON.stringify({
+          ten_nhom: newGroupData.ten_nhom,
+          mo_ta: newGroupData.mo_ta,
+          memberIds: newGroupData.memberIds
+        })
+      })
+      
+      const data = await response.json()
+      
+      if (response.ok && data.success) {
+        setShowCreateModal(false)
+        setNewGroupData({ ten_nhom: '', mo_ta: '', memberIds: [] })
+        fetchGroups()
+        setError(null)
+      } else {
+        setError(data.message || 'Không thể tạo nhóm')
+      }
+    } catch (error) {
+      console.error('Error creating group:', error)
+      setError('Có lỗi xảy ra khi tạo nhóm')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Xóa nhóm - Chuyển tất cả thành viên thành free-agent
+  const handleDeleteGroup = async (groupId) => {
+    if (!window.confirm('Bạn có chắc chắn muốn xóa nhóm này? Tất cả thành viên sẽ trở thành free-agent.')) return
+    
+    setLoading(true)
+    try {
+      const token = localStorage.getItem('authToken')
+      const response = await fetch(`http://localhost:5000/api/groups/${groupId}/delete`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
         }
-      ]
-    },
-    {
-      id: 2,
-      name: 'Nhóm Vận chuyển 2',
-      transactionCount: 32,
-      totalAmount: '12,800,000',
-      totalPoints: 1280,
-      members: [
-        {
-          id: 3,
-          name: 'Hoàng Văn E',
-          vehicleScheduleCount: 15,
-          transactionCount: 20,
-          transactions: [],
-          schedules: []
+      })
+      
+      const data = await response.json()
+      
+      if (response.ok && data.success) {
+        fetchGroups()
+        if (selectedGroup?.id_nhom === groupId) {
+          setSelectedGroup(null)
+          setSelectedMember(null)
         }
-      ]
-    }
-  ]
-
-  const transactionTypes = [
-    { value: 'all', label: 'Tất cả loại giao dịch' },
-    { value: 'nhan_lich', label: 'Nhận lịch' },
-    { value: 'giao_lich', label: 'Giao lịch' },
-    { value: 'san_cho', label: 'San cho' },
-    { value: 'nhan_san', label: 'Nhận san' },
-    { value: 'huy_lich', label: 'Hủy lịch' }
-  ]
-
-  const scheduleStatuses = [
-    { value: 'all', label: 'Tất cả trạng thái' },
-    { value: 'cho_xac_nhan', label: 'Chờ xác nhận' },
-    { value: 'da_xac_nhan', label: 'Đã xác nhận' },
-    { value: 'dang_chay', label: 'Đang chạy' },
-    { value: 'hoan_thanh', label: 'Hoàn thành' },
-    { value: 'da_huy', label: 'Đã hủy' }
-  ]
-
-  const handleCreateGroup = () => {
-    console.log('Tạo nhóm mới')
-    // Xử lý logic tạo nhóm mới
-  }
-
-  const handleEditGroup = (groupId) => {
-    console.log('Sửa thông tin nhóm:', groupId)
-    // Xử lý logic sửa thông tin nhóm
-  }
-
-  const handleDeleteGroup = (groupId) => {
-    if (window.confirm('Bạn có chắc chắn muốn xóa nhóm này?')) {
-      console.log('Xóa nhóm:', groupId)
-      // Xử lý logic xóa nhóm
+        setError(null)
+      } else {
+        setError(data.message || 'Không thể xóa nhóm')
+      }
+    } catch (error) {
+      console.error('Error deleting group:', error)
+      setError('Có lỗi xảy ra khi xóa nhóm')
+    } finally {
+      setLoading(false)
     }
   }
 
-  const handleExportReport = (groupId) => {
-    console.log('Xuất báo cáo nhóm:', groupId)
-    // Xử lý logic xuất báo cáo
-  }
-
-  const handleRemoveMember = (groupId, memberId) => {
-    if (window.confirm('Bạn có chắc chắn muốn xóa thành viên này khỏi nhóm?')) {
-      console.log('Xóa thành viên:', memberId, 'khỏi nhóm:', groupId)
-      // Xử lý logic xóa thành viên khỏi nhóm
+  // Thêm thành viên vào nhóm
+  const handleAddMember = async () => {
+    if (!newMemberData.userId || !newMemberData.groupId) {
+      setError('Vui lòng chọn người dùng và nhóm')
+      return
+    }
+    
+    setLoading(true)
+    try {
+      const token = localStorage.getItem('authToken')
+      const response = await fetch('http://localhost:5000/api/groups/add-member', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(newMemberData)
+      })
+      
+      const data = await response.json()
+      
+      if (response.ok && data.success) {
+        setShowAddMemberModal(false)
+        setNewMemberData({ userId: '', groupId: '' })
+        fetchGroupMembers(newMemberData.groupId)
+        setError(null)
+      } else {
+        setError(data.message || 'Không thể thêm thành viên')
+      }
+    } catch (error) {
+      console.error('Error adding member:', error)
+      setError('Có lỗi xảy ra khi thêm thành viên')
+    } finally {
+      setLoading(false)
     }
   }
 
+  // Thêm thành viên vào nhóm hiện có (từ modal edit)
+  const handleAddMemberToExistingGroup = async (groupId, userId) => {
+    setLoading(true)
+    try {
+      const token = localStorage.getItem('authToken')
+      const response = await fetch('http://localhost:5000/api/groups/add-member', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          groupId,
+          userId
+        })
+      })
+      
+      const data = await response.json()
+      
+      if (response.ok && data.success) {
+        fetchGroupMembers(groupId) // Refresh thành viên
+        setError(null)
+      } else {
+        setError(data.message || 'Không thể thêm thành viên')
+      }
+    } catch (error) {
+      console.error('Error adding member to existing group:', error)
+      setError('Có lỗi xảy ra khi thêm thành viên')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Cập nhật nhóm
+  const handleEditGroup = async () => {
+    if (!editingGroup || !editingGroup.ten_nhom.trim()) {
+      setError('Tên nhóm không được để trống')
+      return
+    }
+    
+    setLoading(true)
+    try {
+      const token = localStorage.getItem('authToken')
+      const response = await fetch(`http://localhost:5000/api/groups/${editingGroup.id_nhom}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ten_nhom: editingGroup.ten_nhom,
+          mo_ta: editingGroup.mo_ta
+        })
+      })
+      
+      const data = await response.json()
+      
+      if (response.ok && data.success) {
+        setShowEditModal(false)
+        setEditingGroup(null)
+        fetchGroups() // Refresh danh sách
+        setError(null)
+      } else {
+        setError(data.message || 'Không thể cập nhật nhóm')
+      }
+    } catch (error) {
+      console.error('Error updating group:', error)
+      setError('Có lỗi xảy ra khi cập nhật nhóm')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Xử lý click vào nhóm - chỉ cần chọn, không cần fetch lại
   const handleGroupClick = (group) => {
     setSelectedGroup(group)
     setSelectedMember(null)
+    // Dữ liệu đã được load sẵn từ useEffect
   }
 
-  const handleMemberClick = (member) => {
-    setSelectedMember(member)
-  }
-
-  const getTransactionTypeInfo = (type) => {
-    const typeConfig = {
-      'nhan_lich': { label: 'Nhận lịch', color: 'bg-green-50 text-green-600 border-green-100' },
-      'giao_lich': { label: 'Giao lịch', color: 'bg-red-50 text-red-600 border-red-100' },
-      'san_cho': { label: 'San cho', color: 'bg-blue-50 text-blue-600 border-blue-100' },
-      'nhan_san': { label: 'Nhận san', color: 'bg-green-50 text-green-600 border-green-100' },
-      'huy_lich': { label: 'Hủy lịch', color: 'bg-orange-50 text-orange-600 border-orange-100' }
+  // Tính toán thống kê cho nhóm
+  const calculateGroupStats = (groupId) => {
+    const transactions = groupTransactions[groupId] || []
+    const totalAmount = transactions.reduce((sum, t) => sum + (parseFloat(t.so_tien) || 0), 0)
+    const totalPoints = transactions.reduce((sum, t) => sum + (parseFloat(t.diem) || 0), 0)
+    
+    return {
+      transactionCount: transactions.length,
+      totalAmount: totalAmount.toLocaleString('vi-VN'),
+      totalPoints: totalPoints.toFixed(2)
     }
-    return typeConfig[type] || typeConfig['nhan_lich']
   }
 
-  const getStatusInfo = (status) => {
-    const statusConfig = {
-      'cho_xac_nhan': { label: 'Chờ xác nhận', color: 'bg-yellow-50 text-yellow-600 border-yellow-100' },
-      'da_xac_nhan': { label: 'Đã xác nhận', color: 'bg-blue-50 text-blue-600 border-blue-100' },
-      'dang_chay': { label: 'Đang chạy', color: 'bg-green-50 text-green-600 border-green-100' },
-      'hoan_thanh': { label: 'Hoàn thành', color: 'bg-purple-50 text-purple-600 border-purple-100' },
-      'da_huy': { label: 'Đã hủy', color: 'bg-red-50 text-red-600 border-red-100' }
+  // Lọc nhóm theo tìm kiếm
+  const filteredGroups = groups.filter(group => 
+    group.ten_nhom.toLowerCase().includes(searchGroup.toLowerCase())
+  )
+
+  // Xử lý click vào user để xem chi tiết
+  const handleUserDetailClick = (user) => {
+    setSelectedUserDetail(user)
+    setShowUserDetailModal(true)
+  }
+
+  // Lọc giao dịch theo filter
+  const getFilteredTransactions = (userId) => {
+    if (!selectedGroup) return []
+    
+    const allTransactions = groupTransactions[selectedGroup.id_nhom] || []
+    let filtered = allTransactions.filter(t => 
+      t.id_nguoi_gui === userId || t.id_nguoi_nhan === userId
+    )
+
+    // Xử lý logic hiển thị giao dịch theo vai trò người dùng
+    filtered = processTransactionsForUser(filtered, userId, user)
+
+    // Filter theo loại giao dịch
+    if (transactionFilters.transactionType !== 'all') {
+      filtered = filtered.filter(t => t.id_loai_giao_dich == transactionFilters.transactionType)
     }
-    return statusConfig[status] || statusConfig['cho_xac_nhan']
+
+    // Filter theo trạng thái
+    if (transactionFilters.status !== 'all') {
+      filtered = filtered.filter(t => t.trang_thai === transactionFilters.status)
+    }
+
+    // Filter theo ngày
+    if (transactionFilters.startDate) {
+      filtered = filtered.filter(t => new Date(t.ngay_tao) >= new Date(transactionFilters.startDate))
+    }
+    if (transactionFilters.endDate) {
+      filtered = filtered.filter(t => new Date(t.ngay_tao) <= new Date(transactionFilters.endDate))
+    }
+
+    // Filter theo text
+    if (transactionFilters.searchText) {
+      filtered = filtered.filter(t => 
+        t.noi_dung.toLowerCase().includes(transactionFilters.searchText.toLowerCase())
+      )
+    }
+
+    return filtered
+  }
+
+  // Xử lý logic hiển thị giao dịch theo vai trò người dùng
+  const processTransactionsForUser = (transactions, targetUserId, currentUser) => {
+    if (!transactions || transactions.length === 0) return []
+    
+    const isAdmin = currentUser?.la_admin === 1 || currentUser?.la_admin === true
+    const isOwnUser = currentUser?.id_nguoi_dung === parseInt(targetUserId)
+    
+    // Nếu là admin xem giao dịch của người khác, hiển thị tất cả
+    if (isAdmin && !isOwnUser) {
+      return transactions
+    }
+    
+    // Nếu là user thường xem giao dịch của mình hoặc admin xem giao dịch của mình
+    const processedTransactions = []
+    const processedScheduleIds = new Set()
+    
+    transactions.forEach(transaction => {
+      const scheduleId = transaction.id_lich_xe
+      
+      // Nếu đã xử lý lịch xe này rồi, bỏ qua
+      if (processedScheduleIds.has(scheduleId)) {
+        return
+      }
+      
+      // Tìm tất cả giao dịch liên quan đến lịch xe này
+      const relatedTransactions = transactions.filter(t => t.id_lich_xe === scheduleId)
+      
+      if (relatedTransactions.length > 1) {
+        // Có nhiều giao dịch liên quan (Giao lịch - Nhận lịch hoặc Hủy lịch)
+        if (transaction.id_loai_giao_dich === 1) { // Giao lịch
+          // Nếu là người giao lịch, chỉ hiển thị giao dịch giao lịch
+          if (transaction.id_nguoi_gui === parseInt(targetUserId)) {
+            processedTransactions.push(transaction)
+            processedScheduleIds.add(scheduleId)
+          }
+        } else if (transaction.id_loai_giao_dich === 2) { // Nhận lịch
+          // Nếu là người nhận lịch, chỉ hiển thị giao dịch nhận lịch
+          if (transaction.id_nguoi_nhan === parseInt(targetUserId)) {
+            processedTransactions.push(transaction)
+            processedScheduleIds.add(scheduleId)
+          }
+        } else if (transaction.id_loai_giao_dich === 3) { // Hủy lịch
+          // Gộp 2 giao dịch hủy lịch thành 1
+          const cancelTransactions = relatedTransactions.filter(t => t.id_loai_giao_dich === 3)
+          if (cancelTransactions.length === 2) {
+            const senderCancel = cancelTransactions.find(t => t.id_nguoi_gui === parseInt(targetUserId))
+            const receiverCancel = cancelTransactions.find(t => t.id_nguoi_nhan === parseInt(targetUserId))
+            
+            if (senderCancel || receiverCancel) {
+              // Tạo giao dịch gộp
+              const mergedTransaction = {
+                ...transaction,
+                noi_dung: `Hủy lịch xe #${scheduleId} - ${senderCancel ? 'Người giao' : 'Người nhận'} hủy`,
+                is_merged: true,
+                related_transactions: cancelTransactions
+              }
+              processedTransactions.push(mergedTransaction)
+              processedScheduleIds.add(scheduleId)
+            }
+          }
+        } else if (transaction.id_loai_giao_dich === 4 || transaction.id_loai_giao_dich === 5) { // San cho - Nhận san
+          // Tương tự như giao lịch - nhận lịch
+          if (transaction.id_loai_giao_dich === 4 && transaction.id_nguoi_gui === parseInt(targetUserId)) {
+            processedTransactions.push(transaction)
+            processedScheduleIds.add(scheduleId)
+          } else if (transaction.id_loai_giao_dich === 5 && transaction.id_nguoi_nhan === parseInt(targetUserId)) {
+            processedTransactions.push(transaction)
+            processedScheduleIds.add(scheduleId)
+          }
+        }
+      } else {
+        // Chỉ có 1 giao dịch, hiển thị bình thường
+        processedTransactions.push(transaction)
+        processedScheduleIds.add(scheduleId)
+      }
+    })
+    
+    return processedTransactions
+  }
+
+  // Lọc lịch xe theo filter
+  const getFilteredSchedules = (userId) => {
+    if (!selectedGroup) return []
+    
+    const allSchedules = groupSchedules[selectedGroup.id_nhom] || []
+    let filtered = allSchedules.filter(s => 
+      s.id_nguoi_tao === userId || s.id_nguoi_nhan === userId
+    )
+
+    // Filter theo loại xe
+    if (scheduleFilters.vehicleType !== 'all') {
+      filtered = filtered.filter(s => s.id_loai_xe == scheduleFilters.vehicleType)
+    }
+
+    // Filter theo loại tuyến
+    if (scheduleFilters.routeType !== 'all') {
+      filtered = filtered.filter(s => s.id_loai_tuyen == scheduleFilters.routeType)
+    }
+
+    // Filter theo trạng thái
+    if (scheduleFilters.status !== 'all') {
+      filtered = filtered.filter(s => s.trang_thai === scheduleFilters.status)
+    }
+
+    // Filter theo ngày
+    if (scheduleFilters.startDate) {
+      filtered = filtered.filter(s => new Date(s.thoi_gian_bat_dau_don) >= new Date(scheduleFilters.startDate))
+    }
+    if (scheduleFilters.endDate) {
+      filtered = filtered.filter(s => new Date(s.thoi_gian_bat_dau_don) <= new Date(scheduleFilters.endDate))
+    }
+
+    // Filter theo text
+    if (scheduleFilters.searchText) {
+      filtered = filtered.filter(s => 
+        s.noi_dung?.toLowerCase().includes(scheduleFilters.searchText.toLowerCase()) ||
+        s.id_lich_xe.toString().includes(scheduleFilters.searchText)
+      )
+    }
+
+    return filtered
+  }
+
+  // Load dữ liệu khi component mount
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchGroups()
+      fetchAvailableUsers()
+    }
+  }, [isAuthenticated])
+
+  // Load dữ liệu chi tiết cho tất cả nhóm sau khi có danh sách nhóm
+  useEffect(() => {
+    if (groups.length > 0) {
+      // Load dữ liệu cho tất cả nhóm cùng lúc
+      groups.forEach(group => {
+        fetchGroupMembers(group.id_nhom)
+        fetchGroupTransactions(group.id_nhom)
+        fetchGroupSchedules(group.id_nhom)
+      })
+    }
+  }, [groups])
+
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-gray-25 flex items-center justify-center">
+        <div className="text-center">
+          <ExclamationCircleOutlined className="text-6xl text-gray-400 mb-4" />
+          <h2 className="text-xl font-semibold text-gray-600 mb-2">Vui lòng đăng nhập</h2>
+          <p className="text-gray-500">Bạn cần đăng nhập để truy cập trang này</p>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -212,8 +584,24 @@ const GroupsPage = () => {
       <div className="max-w-7xl mx-auto">
         <h1 className="text-2xl font-bold text-gray-800 mb-8">Quản lý Nhóm</h1>
         
+        {/* Error Message */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6">
+            <div className="flex items-center">
+              <ExclamationCircleOutlined className="text-red-500 mr-2" />
+              <span className="text-red-700">{error}</span>
+              <button
+                onClick={() => setError(null)}
+                className="ml-auto text-red-400 hover:text-red-600"
+              >
+                ×
+              </button>
+            </div>
+          </div>
+        )}
+        
         {/* Search and Create Section */}
-        <div className="bg-white mb-6">
+        <div className="bg-white mb-6 rounded-2xl shadow-sm border border-gray-100 p-6">
           <div className="flex items-center justify-between">
             <div className="flex-1 max-w-xl">
               <div className="relative">
@@ -228,7 +616,7 @@ const GroupsPage = () => {
               </div>
             </div>
             <button
-              onClick={handleCreateGroup}
+              onClick={() => setShowCreateModal(true)}
               className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl font-medium hover:from-blue-600 hover:to-purple-700 transition-all duration-200 shadow-sm"
             >
               <PlusOutlined className="text-sm" />
@@ -240,8 +628,23 @@ const GroupsPage = () => {
         {/* Groups Table */}
         <div className="bg-white mb-6 rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="p-6 border-b border-gray-100">
+            <div className="flex items-center justify-between">
             <h3 className="text-lg font-semibold text-gray-800">Bảng các nhóm</h3>
+              {loading && (
+                <div className="flex items-center text-sm text-blue-600">
+                  <LoadingOutlined className="mr-2" />
+                  <span>Đang tải dữ liệu chi tiết...</span>
           </div>
+              )}
+            </div>
+          </div>
+          
+          {groups.length === 0 ? (
+            <div className="p-12 text-center">
+              <LoadingOutlined className="text-4xl text-blue-500 mb-4" />
+              <p className="text-gray-500">Đang tải danh sách nhóm...</p>
+            </div>
+          ) : (
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50">
@@ -255,44 +658,58 @@ const GroupsPage = () => {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {groups.map(group => (
-                  <tr 
-                    key={group.id}
+                  {filteredGroups.length === 0 ? (
+                    <tr>
+                      <td colSpan="6" className="px-6 py-12 text-center text-gray-500">
+                        {searchGroup ? 'Không tìm thấy nhóm nào phù hợp' : 'Chưa có nhóm nào'}
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredGroups.map(group => {
+                      const stats = calculateGroupStats(group.id_nhom)
+                      return (
+                        <tr 
+                          key={group.id_nhom}
                     className={`hover:bg-gray-50 cursor-pointer transition-colors ${
-                      selectedGroup?.id === group.id ? 'bg-blue-50' : ''
+                            selectedGroup?.id_nhom === group.id_nhom ? 'bg-blue-50' : ''
                     }`}
                     onClick={() => handleGroupClick(group)}
                   >
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">{group.name}</div>
+                            <div className="text-sm font-medium text-gray-900">{group.ten_nhom}</div>
+                            {group.mo_ta && (
+                              <div className="text-xs text-gray-500 mt-1">{group.mo_ta}</div>
+                            )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-center">
                       <div className="flex items-center justify-center">
                         <TransactionOutlined className="text-blue-500 mr-2" />
-                        <span className="text-sm text-gray-900">{group.transactionCount}</span>
+                              <span className="text-sm text-gray-900">{stats.transactionCount}</span>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-center">
                       <div className="flex items-center justify-center">
                         <DollarOutlined className="text-green-500 mr-2" />
-                        <span className="text-sm text-gray-900">{group.totalAmount}</span>
+                              <span className="text-sm text-gray-900">{stats.totalAmount} VNĐ</span>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-center">
                       <div className="flex items-center justify-center">
                         <TeamOutlined className="text-purple-500 mr-2" />
-                        <span className="text-sm text-gray-900">{group.totalPoints}</span>
+                              <span className="text-sm text-gray-900">{stats.totalPoints}</span>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-center">
-                      <span className="text-sm text-gray-900">{group.members.length}</span>
+                            <span className="text-sm text-gray-900">
+                              {(groupMembers[group.id_nhom] || []).length}
+                            </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-center">
                       <div className="flex items-center justify-center space-x-2">
                         <button
                           onClick={(e) => {
                             e.stopPropagation()
-                            handleExportReport(group.id)
+                                  // handleExportReport(group.id_nhom)
                           }}
                           className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                           title="Xuất báo cáo"
@@ -302,7 +719,12 @@ const GroupsPage = () => {
                         <button
                           onClick={(e) => {
                             e.stopPropagation()
-                            handleEditGroup(group.id)
+                            setEditingGroup(group)
+                            setShowEditModal(true)
+                            // Đảm bảo dữ liệu thành viên đã được load
+                            if (!groupMembers[group.id_nhom]) {
+                              fetchGroupMembers(group.id_nhom)
+                            }
                           }}
                           className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
                           title="Sửa thông tin"
@@ -312,7 +734,7 @@ const GroupsPage = () => {
                         <button
                           onClick={(e) => {
                             e.stopPropagation()
-                            handleDeleteGroup(group.id)
+                                  handleDeleteGroup(group.id_nhom)
                           }}
                           className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                           title="Xóa nhóm"
@@ -322,20 +744,41 @@ const GroupsPage = () => {
                       </div>
                     </td>
                   </tr>
-                ))}
+                      )
+                    })
+                  )}
               </tbody>
             </table>
           </div>
+          )}
         </div>
 
         {/* Members Table - Drill-down */}
         {selectedGroup && (
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
             <div className="p-6 border-b border-gray-100">
+              <div className="flex items-center justify-between">
+                <div>
               <h3 className="text-lg font-semibold text-gray-800">
-                Danh sách thành viên nhóm: {selectedGroup.name}
+                    Danh sách thành viên nhóm: {selectedGroup.ten_nhom}
               </h3>
+                  {!groupMembers[selectedGroup.id_nhom] && (
+                    <p className="text-sm text-gray-500 mt-1">Đang tải danh sách thành viên...</p>
+                  )}
             </div>
+                <button
+                  onClick={() => {
+                    setNewMemberData({ userId: '', groupId: selectedGroup.id_nhom })
+                    setShowAddMemberModal(true)
+                  }}
+                  className="flex items-center space-x-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
+                >
+                  <PlusOutlined className="text-sm" />
+                  <span>Thêm thành viên</span>
+                </button>
+              </div>
+            </div>
+            
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-gray-50">
@@ -347,39 +790,53 @@ const GroupsPage = () => {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {selectedGroup.members.map(member => (
-                    <tr 
-                      key={member.id}
+                  {(groupMembers[selectedGroup.id_nhom] || []).length === 0 ? (
+                    <tr>
+                      <td colSpan="4" className="px-6 py-8 text-center text-gray-500">
+                        Chưa có thành viên nào trong nhóm
+                      </td>
+                    </tr>
+                  ) : (
+                    (groupMembers[selectedGroup.id_nhom] || []).map(member => {
+                      const memberTransactions = (groupTransactions[selectedGroup.id_nhom] || [])
+                        .filter(t => t.id_nguoi_gui === member.id_nguoi_dung || t.id_nguoi_nhan === member.id_nguoi_dung)
+                      
+                      const memberSchedules = (groupSchedules[selectedGroup.id_nhom] || [])
+                        .filter(s => s.id_nguoi_tao === member.id_nguoi_dung || s.id_nguoi_nhan === member.id_nguoi_dung)
+                      
+                      return (
+                        <tr 
+                          key={member.id_nguoi_dung}
                       className={`hover:bg-gray-50 cursor-pointer transition-colors ${
-                        selectedMember?.id === member.id ? 'bg-blue-50' : ''
+                            selectedMember?.id_nguoi_dung === member.id_nguoi_dung ? 'bg-blue-50' : ''
                       }`}
-                      onClick={() => handleMemberClick(member)}
+                          onClick={() => handleUserDetailClick(member)}
                     >
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
                           <div className="w-8 h-8 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center mr-3">
                             <UserOutlined className="text-white text-xs" />
                           </div>
-                          <div className="text-sm font-medium text-gray-900">{member.name}</div>
+                              <div className="text-sm font-medium text-gray-900">{member.ho_ten}</div>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-center">
                         <div className="flex items-center justify-center">
                           <CarOutlined className="text-blue-500 mr-2" />
-                          <span className="text-sm text-gray-900">{member.vehicleScheduleCount}</span>
+                              <span className="text-sm text-gray-900">{memberSchedules.length}</span>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-center">
                         <div className="flex items-center justify-center">
                           <TransactionOutlined className="text-green-500 mr-2" />
-                          <span className="text-sm text-gray-900">{member.transactionCount}</span>
+                              <span className="text-sm text-gray-900">{memberTransactions.length}</span>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-center">
                         <button
                           onClick={(e) => {
                             e.stopPropagation()
-                            handleRemoveMember(selectedGroup.id, member.id)
+                                // handleRemoveMember(selectedGroup.id_nhom, member.id_nguoi_dung)
                           }}
                           className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                           title="Xóa khỏi nhóm"
@@ -388,175 +845,525 @@ const GroupsPage = () => {
                         </button>
                       </td>
                     </tr>
-                  ))}
+                      )
+                    })
+                  )}
                 </tbody>
               </table>
             </div>
+          </div>
+        )}
 
-            {/* Member Details - Drill-down */}
-            {selectedMember && (
-              <div className="border-t border-gray-200 p-6">
-                <h4 className="text-md font-semibold text-gray-800 mb-4">
-                  Chi tiết thành viên: {selectedMember.name}
-                </h4>
-                
-                {/* Tabs */}
-                <div className="border-b border-gray-200 mb-4">
-                  <div className="flex space-x-8">
+        {/* Create Group Modal */}
+        {showCreateModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-2xl p-6 w-full max-w-lg">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">Tạo nhóm mới</h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Tên nhóm</label>
+                  <input
+                    type="text"
+                    value={newGroupData.ten_nhom}
+                    onChange={(e) => setNewGroupData(prev => ({ ...prev, ten_nhom: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Nhập tên nhóm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Mô tả</label>
+                  <textarea
+                    value={newGroupData.mo_ta}
+                    onChange={(e) => setNewGroupData(prev => ({ ...prev, mo_ta: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Nhập mô tả (không bắt buộc)"
+                    rows="3"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Thêm thành viên (không bắt buộc)</label>
+                  <div className="max-h-40 overflow-y-auto border border-gray-200 rounded-lg p-2">
+                    {availableUsers.length === 0 ? (
+                      <p className="text-gray-500 text-sm">Đang tải danh sách người dùng...</p>
+                    ) : (
+                      availableUsers.map(user => (
+                        <label key={user.id_nguoi_dung} className="flex items-center space-x-2 p-2 hover:bg-gray-50 rounded">
+                          <input
+                            type="checkbox"
+                            checked={newGroupData.memberIds.includes(user.id_nguoi_dung)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setNewGroupData(prev => ({
+                                  ...prev,
+                                  memberIds: [...prev.memberIds, user.id_nguoi_dung]
+                                }))
+                              } else {
+                                setNewGroupData(prev => ({
+                                  ...prev,
+                                  memberIds: prev.memberIds.filter(id => id !== user.id_nguoi_dung)
+                                }))
+                              }
+                            }}
+                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          />
+                          <span className="text-sm text-gray-700">{user.ho_ten} ({user.ten_dang_nhap})</span>
+                        </label>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+              <div className="flex space-x-3 mt-6">
                     <button
-                      onClick={() => setActiveTab('transactions')}
-                      className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
-                        activeTab === 'transactions'
-                          ? 'border-blue-500 text-blue-600'
-                          : 'border-transparent text-gray-500 hover:text-gray-700'
-                      }`}
-                    >
-                      Giao dịch ({selectedMember.transactions.length})
+                  onClick={() => setShowCreateModal(false)}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Hủy
                     </button>
                     <button
-                      onClick={() => setActiveTab('schedules')}
-                      className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
-                        activeTab === 'schedules'
-                          ? 'border-blue-500 text-blue-600'
-                          : 'border-transparent text-gray-500 hover:text-gray-700'
-                      }`}
-                    >
-                      Lịch xe ({selectedMember.schedules.length})
+                  onClick={handleCreateGroup}
+                  disabled={loading}
+                  className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50"
+                >
+                  {loading ? <LoadingOutlined /> : 'Tạo nhóm'}
                     </button>
                   </div>
                 </div>
+          </div>
+        )}
 
-                {/* Tab Content */}
-                {activeTab === 'transactions' && (
+        {/* Edit Group Modal */}
+        {showEditModal && editingGroup && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-2xl p-6 w-full max-w-lg">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">Sửa thông tin nhóm</h3>
+              <div className="space-y-4">
                   <div>
-                    {/* Filters */}
-                    <div className="flex items-center space-x-4 mb-4">
-                      <div className="flex items-center space-x-2">
-                        <label className="text-sm font-medium text-gray-700">Từ ngày:</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Tên nhóm</label>
                         <input
-                          type="date"
-                          value={dateRange.startDate}
-                          onChange={(e) => setDateRange(prev => ({ ...prev, startDate: e.target.value }))}
-                          className="px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                    type="text"
+                    value={editingGroup.ten_nhom}
+                    onChange={(e) => setEditingGroup(prev => ({ ...prev, ten_nhom: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         />
                       </div>
-                      <div className="flex items-center space-x-2">
-                        <label className="text-sm font-medium text-gray-700">Đến ngày:</label>
-                        <input
-                          type="date"
-                          value={dateRange.endDate}
-                          onChange={(e) => setDateRange(prev => ({ ...prev, endDate: e.target.value }))}
-                          className="px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                        />
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Mô tả</label>
+                  <textarea
+                    value={editingGroup.mo_ta || ''}
+                    onChange={(e) => setEditingGroup(prev => ({ ...prev, mo_ta: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    rows="3"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Thành viên hiện tại</label>
+                  <div className="max-h-32 overflow-y-auto border border-gray-200 rounded-lg p-2 bg-gray-50">
+                    {!groupMembers[editingGroup.id_nhom] ? (
+                      <div className="text-center py-4">
+                        <LoadingOutlined className="text-blue-500 mr-2" />
+                        <span className="text-gray-500 text-sm">Đang tải danh sách thành viên...</span>
                       </div>
-                      <div className="flex items-center space-x-2">
-                        <label className="text-sm font-medium text-gray-700">Loại giao dịch:</label>
-                        <select
-                          value={transactionType}
-                          onChange={(e) => setTransactionType(e.target.value)}
-                          className="px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                        >
-                          {transactionTypes.map(type => (
-                            <option key={type.value} value={type.value}>
-                              {type.label}
-                            </option>
-                          ))}
-                        </select>
+                    ) : (groupMembers[editingGroup.id_nhom] || []).length === 0 ? (
+                      <p className="text-gray-500 text-sm">Chưa có thành viên nào</p>
+                    ) : (
+                      (groupMembers[editingGroup.id_nhom] || []).map(member => (
+                        <div key={member.id_nguoi_dung} className="flex items-center justify-between p-2 bg-white rounded border mb-2">
+                          <span className="text-sm text-gray-700">{member.ho_ten} ({member.ten_dang_nhap})</span>
+                          <span className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded">Đã có trong nhóm</span>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Thêm thành viên mới</label>
+                  <div className="max-h-32 overflow-y-auto border border-gray-200 rounded-lg p-2">
+                    {availableUsers.length === 0 ? (
+                      <p className="text-gray-500 text-sm">Đang tải danh sách người dùng...</p>
+                    ) : (
+                      availableUsers
+                        .filter(user => !(groupMembers[editingGroup.id_nhom] || [])
+                          .some(member => member.id_nguoi_dung === user.id_nguoi_dung))
+                        .map(user => (
+                          <label key={user.id_nguoi_dung} className="flex items-center space-x-2 p-2 hover:bg-gray-50 rounded">
+                        <input
+                              type="checkbox"
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  // Thêm thành viên mới vào nhóm
+                                  handleAddMemberToExistingGroup(editingGroup.id_nhom, user.id_nguoi_dung)
+                                }
+                              }}
+                              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                            />
+                            <span className="text-sm text-gray-700">{user.ho_ten} ({user.ten_dang_nhap})</span>
+                          </label>
+                        ))
+                    )}
+                      </div>
+                </div>
+              </div>
+              <div className="flex space-x-3 mt-6">
+                <button
+                  onClick={() => setShowEditModal(false)}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Hủy
+                </button>
+                <button
+                  onClick={handleEditGroup}
+                  disabled={loading}
+                  className="flex-1 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors disabled:opacity-50"
+                >
+                  {loading ? <LoadingOutlined /> : 'Cập nhật'}
+                </button>
                       </div>
                     </div>
+          </div>
+        )}
 
-                    {/* Transactions List */}
-                    <div className="space-y-3">
-                      {selectedMember.transactions.map(transaction => {
-                        const typeInfo = getTransactionTypeInfo(transaction.type)
-                        return (
-                          <div key={transaction.id} className="p-3 border border-gray-200 rounded-lg">
-                            <div className="flex items-center justify-between">
-                              <div className="flex-1">
-                                <p className="text-sm font-medium text-gray-800">{transaction.content}</p>
-                                <p className="text-xs text-gray-500 mt-1">{transaction.datetime}</p>
+        {/* Add Member Modal */}
+        {showAddMemberModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-2xl p-6 w-full max-w-lg">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">Thêm thành viên vào nhóm</h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Chọn người dùng để thêm</label>
+                  <div className="max-h-60 overflow-y-auto border border-gray-200 rounded-lg p-2">
+                    {availableUsers.length === 0 ? (
+                      <p className="text-gray-500 text-sm">Đang tải danh sách người dùng...</p>
+                    ) : (
+                      availableUsers
+                        .filter(user => !(groupMembers[newMemberData.groupId] || [])
+                          .some(member => member.id_nguoi_dung === user.id_nguoi_dung))
+                        .map(user => (
+                          <label key={user.id_nguoi_dung} className="flex items-center space-x-2 p-2 hover:bg-gray-50 rounded">
+                            <input
+                              type="checkbox"
+                              checked={newMemberData.userId === user.id_nguoi_dung}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setNewMemberData(prev => ({ ...prev, userId: user.id_nguoi_dung }))
+                                } else {
+                                  setNewMemberData(prev => ({ ...prev, userId: '' }))
+                                }
+                              }}
+                              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                            />
+                            <span className="text-sm text-gray-700">{user.ho_ten} ({user.ten_dang_nhap})</span>
+                          </label>
+                        ))
+                    )}
                               </div>
-                              <div className="flex items-center space-x-3">
-                                <span className={`px-2 py-1 rounded-lg text-xs font-medium border ${typeInfo.color}`}>
-                                  {typeInfo.label}
-                                </span>
-                                <div className="text-right">
-                                  <p className="text-sm font-medium text-gray-800">{transaction.amount} VNĐ</p>
-                                  <p className="text-xs text-gray-500">{transaction.points} điểm</p>
                                 </div>
                               </div>
+              <div className="flex space-x-3 mt-6">
+                <button
+                  onClick={() => setShowAddMemberModal(false)}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Hủy
+                </button>
+                <button
+                  onClick={handleAddMember}
+                  disabled={loading || !newMemberData.userId}
+                  className="flex-1 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors disabled:opacity-50"
+                >
+                  {loading ? <LoadingOutlined /> : 'Thêm thành viên'}
+                </button>
                             </div>
                           </div>
-                        )
-                      })}
+          </div>
+        )}
+
+        {/* User Detail Modal */}
+        {showUserDetailModal && selectedUserDetail && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-2xl p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-semibold text-gray-800">
+                  Chi tiết thành viên: {selectedUserDetail.ho_ten}
+                </h3>
+                <button
+                  onClick={() => setShowUserDetailModal(false)}
+                  className="text-gray-400 hover:text-gray-600 text-2xl"
+                >
+                  ×
+                </button>
+              </div>
+
+              {/* Filters - Hiển thị theo tab */}
+              {activeTab === 'transactions' && (
+                <div className="bg-gray-50 p-4 rounded-lg mb-6">
+                  <h4 className="text-sm font-medium text-gray-700 mb-3">Bộ lọc giao dịch</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Tìm kiếm</label>
+                      <input
+                        type="text"
+                        placeholder="Tìm theo nội dung..."
+                        value={transactionFilters.searchText}
+                        onChange={(e) => setTransactionFilters(prev => ({ ...prev, searchText: e.target.value }))}
+                        className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Từ ngày</label>
+                      <input
+                        type="date"
+                        value={transactionFilters.startDate}
+                        onChange={(e) => setTransactionFilters(prev => ({ ...prev, startDate: e.target.value }))}
+                        className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Đến ngày</label>
+                      <input
+                        type="date"
+                        value={transactionFilters.endDate}
+                        onChange={(e) => setTransactionFilters(prev => ({ ...prev, endDate: e.target.value }))}
+                        className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Loại giao dịch</label>
+                      <select
+                        value={transactionFilters.transactionType}
+                        onChange={(e) => setTransactionFilters(prev => ({ ...prev, transactionType: e.target.value }))}
+                        className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                      >
+                        <option value="all">Tất cả loại</option>
+                        <option value="1">Giao lịch</option>
+                        <option value="2">Nhận lịch</option>
+                        <option value="3">Hủy lịch</option>
+                        <option value="4">San cho</option>
+                        <option value="5">Nhận san</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Trạng thái</label>
+                      <select
+                        value={transactionFilters.status}
+                        onChange={(e) => setTransactionFilters(prev => ({ ...prev, status: e.target.value }))}
+                        className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                      >
+                        <option value="all">Tất cả trạng thái</option>
+                        <option value="cho_xac_nhan">Chờ xác nhận</option>
+                        <option value="hoan_thanh">Hoàn thành</option>
+                        <option value="da_huy">Đã hủy</option>
+                      </select>
+                    </div>
                     </div>
                   </div>
                 )}
 
                 {activeTab === 'schedules' && (
+                <div className="bg-gray-50 p-4 rounded-lg mb-6">
+                  <h4 className="text-sm font-medium text-gray-700 mb-3">Bộ lọc lịch xe</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                   <div>
-                    {/* Filters for Schedules */}
-                    <div className="flex items-center space-x-4 mb-4">
-                      <div className="flex items-center space-x-2">
-                        <label className="text-sm font-medium text-gray-700">Từ ngày:</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Tìm kiếm</label>
+                      <input
+                        type="text"
+                        placeholder="Tìm theo ID lịch xe..."
+                        value={scheduleFilters.searchText}
+                        onChange={(e) => setScheduleFilters(prev => ({ ...prev, searchText: e.target.value }))}
+                        className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Từ ngày</label>
                         <input
                           type="date"
-                          value={dateRange.startDate}
-                          onChange={(e) => setDateRange(prev => ({ ...prev, startDate: e.target.value }))}
-                          className="px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                        value={scheduleFilters.startDate}
+                        onChange={(e) => setScheduleFilters(prev => ({ ...prev, startDate: e.target.value }))}
+                        className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
                         />
                       </div>
-                      <div className="flex items-center space-x-2">
-                        <label className="text-sm font-medium text-gray-700">Đến ngày:</label>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Đến ngày</label>
                         <input
                           type="date"
-                          value={dateRange.endDate}
-                          onChange={(e) => setDateRange(prev => ({ ...prev, endDate: e.target.value }))}
-                          className="px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                        value={scheduleFilters.endDate}
+                        onChange={(e) => setScheduleFilters(prev => ({ ...prev, endDate: e.target.value }))}
+                        className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
                         />
                       </div>
-                      <div className="flex items-center space-x-2">
-                        <label className="text-sm font-medium text-gray-700">Trạng thái:</label>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Loại xe</label>
                         <select
-                          value={scheduleStatus}
-                          onChange={(e) => setScheduleStatus(e.target.value)}
-                          className="px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                        >
-                          {scheduleStatuses.map(status => (
-                            <option key={status.value} value={status.value}>
-                              {status.label}
-                            </option>
-                          ))}
+                        value={scheduleFilters.vehicleType}
+                        onChange={(e) => setScheduleFilters(prev => ({ ...prev, vehicleType: e.target.value }))}
+                        className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                      >
+                        <option value="all">Tất cả loại xe</option>
+                        <option value="1">4 chỗ</option>
+                        <option value="2">5 chỗ</option>
+                        <option value="3">7 chỗ</option>
+                        <option value="4">16 chỗ</option>
+                        <option value="5">29 chỗ</option>
+                        <option value="6">45 chỗ</option>
                         </select>
                       </div>
-                    </div>
-
-                    {/* Schedules List */}
-                    <div className="space-y-3">
-                      {selectedMember.schedules.map(schedule => {
-                        const statusInfo = getStatusInfo(schedule.status)
-                        return (
-                          <div key={schedule.id} className="p-3 border border-gray-200 rounded-lg">
-                            <div className="flex items-center justify-between">
-                              <div className="flex-1">
-                                <p className="text-sm font-medium text-gray-800">{schedule.route}</p>
-                                <p className="text-xs text-gray-500 mt-1">
-                                  {schedule.departureTime} - {schedule.arrivalTime}
-                                </p>
-                                <p className="text-xs text-gray-500">Biển số: {schedule.vehicleNumber}</p>
-                              </div>
-                              <span className={`px-2 py-1 rounded-lg text-xs font-medium border ${statusInfo.color}`}>
-                                {statusInfo.label}
-                              </span>
-                            </div>
-                          </div>
-                        )
-                      })}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Loại tuyến</label>
+                      <select
+                        value={scheduleFilters.routeType}
+                        onChange={(e) => setScheduleFilters(prev => ({ ...prev, routeType: e.target.value }))}
+                        className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                      >
+                        <option value="all">Tất cả loại tuyến</option>
+                        <option value="1">Đón Sân bay - Hà Nội</option>
+                        <option value="2">Tiễn Hà Nội - Sân bay</option>
+                        <option value="3">Lịch Phố 1 Chiều</option>
+                        <option value="4">Lịch Phố 2 Chiều</option>
+                        <option value="5">Lịch Tỉnh/Huyện 1 Chiều</option>
+                        <option value="6">Lịch Tỉnh/Huyện 2 Chiều</option>
+                        <option value="7">Lịch Hướng Sân Bay</option>
+                      </select>
                     </div>
                   </div>
+                  <div className="mt-3">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Trạng thái</label>
+                    <select
+                      value={scheduleFilters.status}
+                      onChange={(e) => setScheduleFilters(prev => ({ ...prev, status: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                    >
+                      <option value="all">Tất cả trạng thái</option>
+                      <option value="cho_xac_nhan">Chờ xác nhận</option>
+                      <option value="da_xac_nhan">Đã xác nhận</option>
+                      <option value="hoan_thanh">Hoàn thành</option>
+                      <option value="da_huy">Đã hủy</option>
+                    </select>
+                  </div>
+                </div>
+              )}
+
+              {/* Tabs */}
+              <div className="border-b border-gray-200 mb-6">
+                <div className="flex space-x-8">
+                  <button
+                    onClick={() => setActiveTab('transactions')}
+                    className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
+                      activeTab === 'transactions'
+                        ? 'border-blue-500 text-blue-600'
+                        : 'border-transparent text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    Giao dịch ({getFilteredTransactions(selectedUserDetail.id_nguoi_dung).length})
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('schedules')}
+                    className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
+                      activeTab === 'schedules'
+                        ? 'border-blue-500 text-blue-600'
+                        : 'border-transparent text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    Lịch xe ({getFilteredSchedules(selectedUserDetail.id_nguoi_dung).length})
+                  </button>
+                </div>
+              </div>
+
+              {/* Tab Content */}
+              {activeTab === 'transactions' && (
+                <div>
+                  <h4 className="text-lg font-semibold text-gray-800 mb-4">Giao dịch</h4>
+                    <div className="space-y-3">
+                    {getFilteredTransactions(selectedUserDetail.id_nguoi_dung).length === 0 ? (
+                      <p className="text-gray-500 text-center py-8">Không có giao dịch nào</p>
+                    ) : (
+                      getFilteredTransactions(selectedUserDetail.id_nguoi_dung).map(transaction => (
+                                                <div key={transaction.id_giao_dich} className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50">
+                            <div className="flex items-center justify-between">
+                              <div className="flex-1">
+                              <p className="text-sm font-medium text-gray-800">{transaction.noi_dung}</p>
+                                <p className="text-xs text-gray-500 mt-1">
+                                {new Date(transaction.ngay_tao).toLocaleString('vi-VN')}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                Loại: {transaction.id_loai_giao_dich === 1 ? 'Giao lịch' : 
+                                       transaction.id_loai_giao_dich === 2 ? 'Nhận lịch' :
+                                       transaction.id_loai_giao_dich === 3 ? 'Hủy lịch' :
+                                       transaction.id_loai_giao_dich === 4 ? 'San cho' : 'Nhận san'}
+                              </p>
+                              {transaction.is_merged && (
+                                <p className="text-xs text-blue-600 mt-1">
+                                  ⚡ Giao dịch gộp từ nhiều bên
+                                </p>
+                              )}
+                              </div>
+                            <div className="flex items-center space-x-3">
+                              <span className={`px-3 py-1 rounded-lg text-xs font-medium border ${
+                                transaction.trang_thai === 'hoan_thanh' 
+                                  ? 'bg-green-50 text-green-600 border-green-100'
+                                  : transaction.trang_thai === 'cho_xac_nhan'
+                                  ? 'bg-yellow-50 text-yellow-600 border-yellow-100'
+                                  : 'bg-red-50 text-red-600 border-red-100'
+                              }`}>
+                                {transaction.trang_thai === 'hoan_thanh' ? 'Hoàn thành' :
+                                 transaction.trang_thai === 'cho_xac_nhan' ? 'Chờ xác nhận' : 'Đã hủy'}
+                              </span>
+                              <div className="text-right">
+                                <p className="text-sm font-medium text-gray-800">
+                                  {parseFloat(transaction.so_tien).toLocaleString('vi-VN')} VNĐ
+                                </p>
+                                <p className="text-xs text-gray-500">{transaction.diem} điểm</p>
+                            </div>
+                          </div>
+                    </div>
+                  </div>
+                      ))
                 )}
+                  </div>
               </div>
             )}
+
+              {activeTab === 'schedules' && (
+                <div>
+                  <h4 className="text-lg font-semibold text-gray-800 mb-4">Lịch xe</h4>
+                  <div className="space-y-3">
+                    {getFilteredSchedules(selectedUserDetail.id_nguoi_dung).length === 0 ? (
+                      <p className="text-gray-500 text-center py-8">Không có lịch xe nào</p>
+                    ) : (
+                      getFilteredSchedules(selectedUserDetail.id_nguoi_dung).map(schedule => (
+                        <div key={schedule.id_lich_xe} className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50">
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1">
+                              <p className="text-sm font-medium text-gray-800">
+                                Lịch xe #{schedule.id_lich_xe}
+                              </p>
+                              <p className="text-xs text-gray-500 mt-1">
+                                {new Date(schedule.thoi_gian_bat_dau_don).toLocaleString('vi-VN')} - {new Date(schedule.thoi_gian_ket_thuc_don).toLocaleString('vi-VN')}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                Người tạo: {schedule.id_nguoi_tao === selectedUserDetail.id_nguoi_dung ? 'Bạn' : 'Người khác'}
+                              </p>
+                            </div>
+                            <span className={`px-3 py-1 rounded-lg text-xs font-medium border ${
+                              schedule.trang_thai === 'hoan_thanh' 
+                                ? 'bg-green-50 text-green-600 border-green-100'
+                                : schedule.trang_thai === 'da_xac_nhan'
+                                ? 'bg-blue-50 text-blue-600 border-blue-100'
+                                : schedule.trang_thai === 'cho_xac_nhan'
+                                ? 'bg-yellow-50 text-yellow-600 border-yellow-100'
+                                : 'bg-red-50 text-red-600 border-red-100'
+                            }`}>
+                              {schedule.trang_thai === 'hoan_thanh' ? 'Hoàn thành' :
+                               schedule.trang_thai === 'da_xac_nhan' ? 'Đã xác nhận' :
+                               schedule.trang_thai === 'cho_xac_nhan' ? 'Chờ xác nhận' : 'Đã hủy'}
+                            </span>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>

@@ -722,21 +722,21 @@ class VehicleScheduleController {
           console.log('  - CỘNG tiền/điểm cho người nhận lịch (B)');
           console.log('  - Cập nhật số dư và điểm trong database');
           
-          // TẠO 2 GIAO DỊCH "HỦY LỊCH" ĐƠN GIẢN
-          console.log('=== TẠO 2 GIAO DỊCH HỦY LỊCH ĐƠN GIẢN ===');
+          // TẠO 2 GIAO DỊCH "HỦY LỊCH" ĐÚNG LOGIC
+          console.log('=== TẠO 2 GIAO DỊCH HỦY LỊCH ĐÚNG LOGIC ===');
           
           try {
-            // Giao dịch 1: id_nguoi_gui = A, id_nguoi_nhan = null → TRỪ tiền của A
-            console.log('🔄 Đang tạo giao dịch 1 (TRỪ A)...');
+            // Giao dịch 1: id_nguoi_gui = B (người hủy), id_nguoi_nhan = null → TRỪ tiền của B
+            console.log('🔄 Đang tạo giao dịch 1 (TRỪ người hủy)...');
             const transaction1Data = {
               id_loai_giao_dich: 3,
-              id_nguoi_gui: giaoLichTransaction.id_nguoi_gui,
+              id_nguoi_gui: currentSchedule.id_nguoi_nhan, // B (người hủy) - LẤY TỪ LỊCH XE!
               id_nguoi_nhan: null,
               id_nhom: currentSchedule.id_nhom,
               id_lich_xe: id,
               so_tien: -Math.abs(giaoLichTransaction.so_tien),
               diem: -Math.abs(giaoLichTransaction.diem),
-              noi_dung: `Hủy lịch xe - Trừ tiền/điểm của người gửi`,
+              noi_dung: `Hủy lịch xe - Trừ tiền/điểm của người hủy lịch`,
               trang_thai: 'hoan_thanh'
             };
             console.log('📋 Dữ liệu giao dịch 1:', JSON.stringify(transaction1Data, null, 2));
@@ -746,20 +746,19 @@ class VehicleScheduleController {
             console.log('  - id_loai_giao_dich:', transaction1Data.id_loai_giao_dich, '(type:', typeof transaction1Data.id_loai_giao_dich, ')');
             
             huyLichTransactionSender = await Transaction.create(transaction1Data);
-            console.log('✅ Giao dịch 1 (TRỪ A) đã tạo thành công - ID:', huyLichTransactionSender);
-            console.log('✅ Giao dịch 1 (TRỪ A) đã tạo thành công - Type:', typeof huyLichTransactionSender);
+            console.log('✅ Giao dịch 1 (TRỪ người hủy) đã tạo thành công - ID:', huyLichTransactionSender);
             
-            // Giao dịch 2: id_nguoi_gui = null, id_nguoi_nhan = B → CỘNG tiền cho B
-            console.log('🔄 Đang tạo giao dịch 2 (CỘNG B)...');
+            // Giao dịch 2: id_nguoi_gui = null, id_nguoi_nhan = A (người được hoàn) → CỘNG tiền cho A
+            console.log('🔄 Đang tạo giao dịch 2 (CỘNG người được hoàn)...');
             const transaction2Data = {
               id_loai_giao_dich: 3,
               id_nguoi_gui: null,
-              id_nguoi_nhan: nhanLichTransaction.id_nguoi_nhan,
+              id_nguoi_nhan: currentSchedule.id_nguoi_tao, // A (người được hoàn) - LẤY TỪ LỊCH XE!
               id_nhom: currentSchedule.id_nhom,
               id_lich_xe: id,
               so_tien: Math.abs(giaoLichTransaction.so_tien),
               diem: Math.abs(giaoLichTransaction.diem),
-              noi_dung: `Hủy lịch xe - Cộng tiền/điểm cho người nhận`,
+              noi_dung: `Hủy lịch xe - Cộng tiền/điểm cho người gửi lịch`,
               trang_thai: 'hoan_thanh'
             };
             console.log('📋 Dữ liệu giao dịch 2:', JSON.stringify(transaction2Data, null, 2));
@@ -769,12 +768,20 @@ class VehicleScheduleController {
             console.log('  - id_loai_giao_dich:', transaction2Data.id_loai_giao_dich, '(type:', typeof transaction2Data.id_loai_giao_dich, ')');
             
             huyLichTransactionReceiver = await Transaction.create(transaction2Data);
-            console.log('✅ Giao dịch 2 (CỘNG B) đã tạo thành công - ID:', huyLichTransactionReceiver);
-            console.log('✅ Giao dịch 2 (CỘNG B) đã tạo thành công - Type:', typeof huyLichTransactionReceiver);
+            console.log('✅ Giao dịch 2 (CỘNG Tài xế) đã tạo thành công - ID:', huyLichTransactionReceiver);
             
             console.log('🎉 CẢ 2 GIAO DỊCH ĐÃ ĐƯỢC TẠO THÀNH CÔNG!');
-            console.log('  - Giao dịch 1 (TRỪ A):', huyLichTransactionSender, 'Type:', typeof huyLichTransactionSender);
-            console.log('  - Giao dịch 2 (CỘNG B):', huyLichTransactionReceiver, 'Type:', typeof huyLichTransactionReceiver);
+            console.log('  - Giao dịch 1 (TRỪ người hủy):', huyLichTransactionSender);
+            console.log('  - Giao dịch 2 (CỘNG người được hoàn):', huyLichTransactionReceiver);
+            
+            // LOG CHI TIẾT ID NGƯỜI GỬI/NHẬN
+            console.log('=== LOG GIAO DỊCH HỦY LỊCH ===');
+            console.log('Giao dịch hủy 1 (trừ người hủy):', transaction1Data);
+            console.log('Giao dịch hủy 2 (hoàn người được hoàn):', transaction2Data);
+            console.log('🔍 CHI TIẾT ID NGƯỜI GỬI/NHẬN:');
+            console.log(`  - Giao dịch hủy 1: id_nguoi_gui = ${transaction1Data.id_nguoi_gui}, id_nguoi_nhan = ${transaction2Data.id_nguoi_nhan}`);
+            console.log(`  - Giao dịch hủy 2: id_nguoi_gui = ${transaction2Data.id_nguoi_gui}, id_nguoi_nhan = ${transaction2Data.id_nguoi_nhan}`);
+            console.log('=== KẾT THÚC LOG ===');
             
           } catch (error) {
             console.error('❌ Lỗi khi tạo giao dịch hủy lịch:', error);
@@ -791,131 +798,83 @@ class VehicleScheduleController {
           // THỰC HIỆN HOÀN TIỀN/ĐIỂM CHO CẢ 2 BÊN
           console.log('=== BẮT ĐẦU HOÀN TIỀN/ĐIỂM ===');
           console.log('🎯 MỤC TIÊU:');
-          console.log('  - Người giao lịch (A): BỊ TRỪ tiền/điểm');
-          console.log('  - Người nhận lịch (B): ĐƯỢC CỘNG tiền/điểm');
+          console.log('  - Người hủy lịch (B): ĐƯỢC CỘNG lại tiền/điểm');
+          console.log('  - Người giao lịch (A): BỊ TRỪ lại tiền/điểm');
           
-          // Hoàn tiền/điểm cho người nhận lịch (B) - được CỘNG
-          const refundAmountReceiver = Math.abs(giaoLichTransaction.so_tien);
-          const refundPointsReceiver = Math.abs(giaoLichTransaction.diem);
+          // Hoàn tiền/điểm cho người hủy lịch (B) - được CỘNG lại
+          const refundAmountHuyLich = Math.abs(giaoLichTransaction.so_tien);
+          const refundPointsHuyLich = Math.abs(giaoLichTransaction.diem);
           
-          console.log('=== HOÀN TIỀN/ĐIỂM CHO NGƯỜI NHẬN LỊCH (B) ===');
-          console.log('  - ID người nhận:', giaoLichTransaction.id_nguoi_nhan);
-          console.log('  - Số tiền hiện tại:', giaoLichTransaction.nguoi_nhan?.so_du, '(type:', typeof giaoLichTransaction.nguoi_nhan?.so_du, ')');
-          console.log('  - Điểm hiện tại:', giaoLichTransaction.nguoi_nhan?.diem, '(type:', typeof giaoLichTransaction.nguoi_nhan?.diem, ')');
-          console.log('  - Số tiền hoàn:', refundAmountReceiver, '(type:', typeof refundAmountReceiver, ')');
-          console.log('  - Điểm hoàn:', refundPointsReceiver, '(type:', typeof refundPointsReceiver, ')');
-          
-          // Kiểm tra dữ liệu người nhận
-          if (!giaoLichTransaction.nguoi_nhan) {
-            console.error('❌ Không tìm thấy thông tin người nhận lịch!');
-            console.error('❌ giaoLichTransaction:', giaoLichTransaction);
-            throw new Error('Không tìm thấy thông tin người nhận lịch để hoàn tiền/điểm');
-          }
-          
-          const currentReceiverBalance = parseFloat(giaoLichTransaction.nguoi_nhan.so_du) || 0;
-          const currentReceiverPoints = parseInt(giaoLichTransaction.nguoi_nhan.diem) || 0;
-          
-          const newReceiverBalance = currentReceiverBalance + refundAmountReceiver;
-          const newReceiverPoints = currentReceiverPoints + refundPointsReceiver;
-          
-          console.log('  - Số dư hiện tại (parsed):', currentReceiverBalance);
-          console.log('  - Điểm hiện tại (parsed):', currentReceiverPoints);
-          console.log('  - Số dư mới (tính toán):', newReceiverBalance);
-          console.log('  - Điểm mới (tính toán):', newReceiverPoints);
+          console.log('=== HOÀN TIỀN/ĐIỂM CHO NGƯỜI HỦY LỊCH (B) ===');
+          console.log('  - ID người hủy:', currentSchedule.id_nguoi_nhan);
+          console.log('  - Số tiền hoàn:', refundAmountHuyLich, '(type:', typeof refundAmountHuyLich, ')');
+          console.log('  - Điểm hoàn:', refundPointsHuyLich, '(type:', typeof refundPointsHuyLich, ')');
           
           try {
-            console.log('🔄 Đang cập nhật số dư và điểm cho người nhận lịch...');
-            console.log('🔄 Gọi User.updateBalanceAndPoints với:');
-            console.log('  - userId:', giaoLichTransaction.id_nguoi_nhan);
-            console.log('  - newBalance:', newReceiverBalance);
-            console.log('  - newPoints:', newReceiverPoints);
+            console.log('🔄 Đang cập nhật số dư và điểm cho người hủy lịch...');
+            
+            // Lấy thông tin người hủy lịch
+            const userHuyLich = await User.getById(currentSchedule.id_nguoi_nhan);
+            if (!userHuyLich) {
+              throw new Error('Không tìm thấy thông tin người hủy lịch');
+            }
+            
+            const currentBalanceHuyLich = parseFloat(userHuyLich.so_du) || 0;
+            const currentPointsHuyLich = parseFloat(userHuyLich.diem) || 0;
+            
+            const newBalanceHuyLich = currentBalanceHuyLich + refundAmountHuyLich;
+            const newPointsHuyLich = currentPointsHuyLich + refundPointsHuyLich;
+            
+            console.log('  - Số dư hiện tại:', currentBalanceHuyLich);
+            console.log('  - Số dư mới (tính toán):', newBalanceHuyLich);
             
             const updateResult = await User.updateBalanceAndPoints(
-              giaoLichTransaction.id_nguoi_nhan,
-              newReceiverBalance,
-              newReceiverPoints
+              currentSchedule.id_nguoi_nhan,
+              newBalanceHuyLich,
+              newPointsHuyLich
             );
-            console.log('✅ Đã hoàn tiền/điểm cho người nhận lịch (B) - Result:', updateResult);
-            
-            // Kiểm tra lại số dư sau khi cập nhật
-            console.log('🔍 Kiểm tra lại số dư sau khi cập nhật...');
-            const updatedUser = await User.getById(giaoLichTransaction.id_nguoi_nhan);
-            console.log('✅ Số dư mới thực tế:', updatedUser.so_du);
-            console.log('✅ Điểm mới thực tế:', updatedUser.diem);
-            
-            // So sánh số dư cũ và mới
-            console.log('📊 SO SÁNH SỐ DƯ:');
-            console.log('  - Số dư cũ:', currentReceiverBalance);
-            console.log('  - Số dư mới (tính toán):', newReceiverBalance);
-            console.log('  - Số dư mới (thực tế):', updatedUser.so_du);
-            console.log('  - Có thay đổi không?', currentReceiverBalance !== updatedUser.so_du ? 'CÓ' : 'KHÔNG');
+            console.log('✅ Đã hoàn tiền/điểm cho người hủy lịch (B) - Result:', updateResult);
             
           } catch (error) {
-            console.error('❌ Lỗi khi hoàn tiền cho người nhận lịch:', error);
-            console.error('Error details:', error.message);
-            console.error('Error stack:', error.stack);
+            console.error('❌ Lỗi khi hoàn tiền cho người hủy lịch:', error);
             throw error;
           }
           
-          console.log('🎉 HOÀN TIỀN/ĐIỂM CHO NGƯỜI NHẬN LỊCH (B) HOÀN TẤT!');
+          console.log('🎉 HOÀN TIỀN/ĐIỂM CHO NGƯỜI HỦY LỊCH (B) HOÀN TẤT!');
           
-          // Hoàn tiền/điểm cho người giao lịch (A) - bị TRỪ
+          // Hoàn tiền/điểm cho người giao lịch (A) - bị TRỪ lại
           console.log('=== HOÀN TIỀN/ĐIỂM CHO NGƯỜI GIAO LỊCH (A) ===');
-          console.log('  - ID người giao:', giaoLichTransaction.id_nguoi_gui);
-          console.log('  - Số tiền hiện tại:', giaoLichTransaction.nguoi_gui?.so_du, '(type:', typeof giaoLichTransaction.nguoi_gui?.so_du, ')');
-          console.log('  - Điểm hiện tại:', giaoLichTransaction.nguoi_gui?.diem, '(type:', typeof giaoLichTransaction.nguoi_gui?.diem, ')');
-          console.log('  - Số tiền hoàn:', refundAmountReceiver, '(type:', typeof refundAmountReceiver, ')');
-          console.log('  - Điểm hoàn:', refundPointsReceiver, '(type:', typeof refundPointsReceiver, ')');
-          
-          // Kiểm tra dữ liệu người giao
-          if (!giaoLichTransaction.nguoi_gui) {
-            console.error('❌ Không tìm thấy thông tin người giao lịch!');
-            console.error('❌ giaoLichTransaction:', giaoLichTransaction);
-            throw new Error('Không tìm thấy thông tin người giao lịch để hoàn tiền/điểm');
-          }
-          
-          const currentSenderBalance = parseFloat(giaoLichTransaction.nguoi_gui.so_du) || 0;
-          const currentSenderPoints = parseInt(giaoLichTransaction.nguoi_gui.diem) || 0;
-          
-          const newSenderBalance = currentSenderBalance - refundAmountReceiver;
-          const newSenderPoints = currentSenderPoints - refundPointsReceiver;
-          
-          console.log('  - Số dư hiện tại (parsed):', currentSenderBalance);
-          console.log('  - Điểm hiện tại (parsed):', currentSenderPoints);
-          console.log('  - Số dư mới (tính toán):', newSenderBalance);
-          console.log('  - Điểm mới (tính toán):', newSenderPoints);
+          console.log('  - ID người giao:', currentSchedule.id_nguoi_tao);
+          console.log('  - Số tiền hoàn:', refundAmountHuyLich, '(type:', typeof refundAmountHuyLich, ')');
+          console.log('  - Điểm hoàn:', refundPointsHuyLich, '(type:', typeof refundPointsHuyLich, ')');
           
           try {
             console.log('🔄 Đang cập nhật số dư và điểm cho người giao lịch...');
-            console.log('🔄 Gọi User.updateBalanceAndPoints với:');
-            console.log('  - userId:', giaoLichTransaction.id_nguoi_gui);
-            console.log('  - newBalance:', newSenderBalance);
-            console.log('  - newPoints:', newSenderPoints);
+            
+            // Lấy thông tin người giao lịch
+            const userGiaoLich = await User.getById(currentSchedule.id_nguoi_tao);
+            if (!userGiaoLich) {
+              throw new Error('Không tìm thấy thông tin người giao lịch');
+            }
+            
+            const currentBalanceGiaoLich = parseFloat(userGiaoLich.so_du) || 0;
+            const currentPointsGiaoLich = parseFloat(userGiaoLich.diem) || 0;
+            
+            const newBalanceGiaoLich = currentBalanceGiaoLich - refundAmountHuyLich;
+            const newPointsGiaoLich = currentPointsGiaoLich - refundPointsHuyLich;
+            
+            console.log('  - Số dư hiện tại:', currentBalanceGiaoLich);
+            console.log('  - Số dư mới (tính toán):', newBalanceGiaoLich);
             
             const updateResult = await User.updateBalanceAndPoints(
-              giaoLichTransaction.id_nguoi_gui,
-              newSenderBalance,
-              newSenderPoints
+              currentSchedule.id_nguoi_tao,
+              newBalanceGiaoLich,
+              newPointsGiaoLich
             );
             console.log('✅ Đã hoàn tiền/điểm cho người giao lịch (A) - Result:', updateResult);
             
-            // Kiểm tra lại số dư sau khi cập nhật
-            console.log('🔍 Kiểm tra lại số dư sau khi cập nhật...');
-            const updatedUser = await User.getById(giaoLichTransaction.id_nguoi_gui);
-            console.log('✅ Số dư mới thực tế:', updatedUser.so_du);
-            console.log('✅ Điểm mới thực tế:', updatedUser.diem);
-            
-            // So sánh số dư cũ và mới
-            console.log('📊 SO SÁNH SỐ DƯ:');
-            console.log('  - Số dư cũ:', currentSenderBalance);
-            console.log('  - Số dư mới (tính toán):', newSenderBalance);
-            console.log('  - Số dư mới (thực tế):', updatedUser.so_du);
-            console.log('  - Có thay đổi không?', currentSenderBalance !== updatedUser.so_du ? 'CÓ' : 'KHÔNG');
-            
           } catch (error) {
             console.error('❌ Lỗi khi hoàn tiền cho người giao lịch:', error);
-            console.error('Error details:', error.message);
-            console.error('Error stack:', error.stack);
             throw error;
           }
           
@@ -930,22 +889,22 @@ class VehicleScheduleController {
           try {
             const { Notification } = require('../models');
             
-            // Thông báo cho người nhận lịch về việc hoàn tiền/điểm
-            const notificationDataReceiver = {
-              id_nguoi_dung: nhanLichTransaction.id_nguoi_nhan,
-              id_giao_dich: huyLichTransactionReceiver || null, // Sử dụng null thay vì undefined
-              noi_dung: `Lịch xe đã bị hủy - Hoàn lại ${refundAmountReceiver.toLocaleString()} VNĐ và ${refundPointsReceiver} điểm`
+            // Thông báo cho người hủy lịch về việc hoàn tiền/điểm
+            const notificationDataHuyLich = {
+              id_nguoi_dung: currentSchedule.id_nguoi_nhan,
+              id_giao_dich: huyLichTransactionSender || null,
+              noi_dung: `Lịch xe đã bị hủy - Hoàn lại ${refundAmountHuyLich.toLocaleString()} VNĐ và ${refundPointsHuyLich} điểm`
             };
-            await Notification.create(notificationDataReceiver);
-            console.log('✅ Thông báo hoàn tiền/điểm cho người nhận lịch');
+            await Notification.create(notificationDataHuyLich);
+            console.log('✅ Thông báo hoàn tiền/điểm cho người hủy lịch');
             
             // Thông báo cho người giao lịch về việc hoàn tiền/điểm
-            const notificationDataSender = {
-              id_nguoi_dung: giaoLichTransaction.id_nguoi_gui,
-              id_giao_dich: huyLichTransactionSender || null, // Sử dụng null thay vì undefined
-              noi_dung: `Lịch xe đã bị hủy - Hoàn lại ${refundAmountReceiver.toLocaleString()} VNĐ và ${refundPointsReceiver} điểm`
+            const notificationDataGiaoLich = {
+              id_nguoi_dung: currentSchedule.id_nguoi_tao,
+              id_giao_dich: huyLichTransactionReceiver || null,
+              noi_dung: `Lịch xe đã bị hủy - Hoàn lại ${refundAmountHuyLich.toLocaleString()} VNĐ và ${refundPointsHuyLich} điểm`
             };
-            await Notification.create(notificationDataSender);
+            await Notification.create(notificationDataGiaoLich);
             console.log('✅ Thông báo hoàn tiền/điểm cho người giao lịch');
           } catch (notificationError) {
             console.error('❌ Lỗi khi tạo thông báo hoàn tiền/điểm:', notificationError);

@@ -330,7 +330,7 @@ const AddNewTransaction = () => {
         id_nhom: parseInt(formData.id_nhom) || null,
         id_lich_xe: scheduleId, // Đơn giản: gán trực tiếp scheduleId vào đây
         so_tien: formData.so_tien && formData.so_tien !== '' ? parseFloat(formData.so_tien) : null,
-        diem: formData.diem && formData.diem !== '' ? parseInt(formData.diem) : null,
+        diem: formData.diem && formData.diem !== '' ? parseFloat(formData.diem) : null,
         noi_dung: formData.noi_dung.trim() || ''
       }
       
@@ -853,10 +853,12 @@ const AddNewTransaction = () => {
                     onChange={(e) => handleInputChange('diem', e.target.value)}
                     placeholder="Nhập số điểm (có thể âm)"
                     className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-gray-50"
-                    step="1"
+                    step="0.1"
                   />
                   <p className="text-xs text-gray-500 mt-1">
                     Số âm: người nhận trả điểm, Số dương: người nhận nhận điểm
+                    <br />
+                    <span className="text-blue-600">💡 Có thể nhập số thập phân (ví dụ: 3.5 điểm)</span>
                   </p>
                   
                   {/* Point Calculation Status Display */}

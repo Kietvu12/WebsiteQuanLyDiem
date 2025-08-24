@@ -93,11 +93,11 @@ async function testNewTransactionLogic() {
     
     // Người giao lịch (nguyenvanA) ĐƯỢC CỘNG tiền và điểm
     const newBalanceUser2 = parseFloat(user2.so_du) + 500000;
-    const newPointsUser2 = parseInt(user2.diem) + 50;
+            const newPointsUser2 = parseFloat(user2.diem) + 50;
     
     // Người nhận lịch (tranthiB) BỊ TRỪ tiền và điểm
     const newBalanceUser3 = parseFloat(user3.so_du) - 500000;
-    const newPointsUser3 = parseInt(user3.diem) - 50;
+            const newPointsUser3 = parseFloat(user3.diem) - 50;
     
     await User.updateBalanceAndPoints(2, newBalanceUser2, newPointsUser2);
     await User.updateBalanceAndPoints(3, newBalanceUser3, newPointsUser3);
