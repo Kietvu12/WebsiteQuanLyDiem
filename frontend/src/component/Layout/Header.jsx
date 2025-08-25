@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { useAuth } from '../../contexts/AuthContext'
+import { useGlobalState } from '../../contexts/GlobalStateContext'
 import { 
   SearchOutlined,
   UserOutlined,
@@ -19,12 +20,17 @@ import Notification from '../Notification/Notification'
 
 const Header = ({ onToggleSidebar }) => {
   const { user, logout, updateProfile, changePassword } = useAuth()
+  const { users } = useGlobalState()
+  
+  // Tìm user hiện tại trong global state để có thông tin mới nhất
+  const currentUser = users.find(u => u.id_nguoi_dung === user?.id_nguoi_dung) || user
+  
   const [isProfileOpen, setIsProfileOpen] = useState(false)
   const [activeModal, setActiveModal] = useState(null)
   const [profileData, setProfileData] = useState({
-    ho_ten: user?.ho_ten || '',
-    so_dien_thoai: user?.so_dien_thoai || '',
-    dia_chi: user?.dia_chi || ''
+    ho_ten: currentUser?.ho_ten || '',
+    so_dien_thoai: currentUser?.so_dien_thoai || '',
+    dia_chi: currentUser?.dia_chi || ''
   })
   const [passwordData, setPasswordData] = useState({
     mat_khau_cu: '',
@@ -160,20 +166,19 @@ const Header = ({ onToggleSidebar }) => {
           
           {/* User Profile Dropdown */}
           <div className="relative">
-            <div 
-              className="flex items-center space-x-3 cursor-pointer hover:bg-gray-50 px-4 py-2.5 rounded-xl transition-all duration-200"
+            <button
               onClick={handleProfileClick}
+              className="flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-100 transition-colors"
             >
               <div className="w-8 h-8 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center">
                 <UserOutlined className="text-white text-sm" />
               </div>
-              <span className="text-gray-700 text-sm font-medium">
-                {user?.ho_ten || user?.ten_dang_nhap || 'User'}
+              {/* Ẩn tên người dùng ở mobile */}
+              <span className="hidden md:block text-sm font-medium text-gray-700">
+                {profileData.ho_ten || 'Người dùng'}
               </span>
-              <DownOutlined className={`text-gray-400 text-xs transition-transform duration-200 ${
-                isProfileOpen ? 'rotate-180' : ''
-              }`} />
-            </div>
+              <DownOutlined className="hidden md:block text-xs text-gray-500" />
+            </button>
 
             {/* Profile Dropdown Menu */}
             {isProfileOpen && (
@@ -185,19 +190,19 @@ const Header = ({ onToggleSidebar }) => {
                       <UserOutlined className="text-white text-base" />
                     </div>
                     <div>
-                      <h3 className="text-sm font-semibold text-gray-800">
-                        {user?.ho_ten || user?.ten_dang_nhap || 'User'}
-                      </h3>
-                      <p className="text-xs text-gray-500">{user?.email || 'user@example.com'}</p>
-                      <div className="flex items-center mt-1">
-                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                          (user?.la_admin === 1 || user?.la_admin === true)
-                            ? 'bg-purple-100 text-purple-800' 
-                            : 'bg-blue-100 text-blue-800'
-                        }`}>
-                          {(user?.la_admin === 1 || user?.la_admin === true) ? 'Admin' : 'Member'}
-                        </span>
-                      </div>
+                                        <h3 className="text-sm font-semibold text-gray-800">
+                    {currentUser?.ho_ten || currentUser?.ten_dang_nhap || 'User'}
+                  </h3>
+                  <p className="text-xs text-gray-500">{currentUser?.email || 'user@example.com'}</p>
+                  <div className="flex items-center mt-1">
+                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                      (currentUser?.la_admin === 1 || currentUser?.la_admin === true)
+                        ? 'bg-purple-100 text-purple-800' 
+                        : 'bg-blue-100 text-blue-800'
+                    }`}>
+                      {(currentUser?.la_admin === 1 || currentUser?.la_admin === true) ? 'Admin' : 'Member'}
+                    </span>
+                  </div>
                     </div>
                   </div>
                 </div>
@@ -230,7 +235,7 @@ const Header = ({ onToggleSidebar }) => {
                     </div>
                   </button>
 
-                  {(user?.la_admin === 1 || user?.la_admin === true) && (
+                  {(currentUser?.la_admin === 1 || currentUser?.la_admin === true) && (
                     <button
                       onClick={() => handleMenuClick('settings')}
                       className="w-full flex items-center space-x-3 px-4 py-3 text-left hover:bg-gray-50 transition-colors group"
@@ -500,7 +505,7 @@ const Header = ({ onToggleSidebar }) => {
       )}
 
       {/* Settings Modal - Chỉ hiển thị cho Admin */}
-      {activeModal === 'settings' && user?.la_admin && (
+      {activeModal === 'settings' && currentUser?.la_admin && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg">
             {/* Modal Header */}

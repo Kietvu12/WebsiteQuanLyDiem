@@ -83,13 +83,32 @@ class UserController {
       res.json({
         success: true,
         message: 'Lấy danh sách người dùng thành công',
-        data: users
+        data: { users }
       });
     } catch (error) {
       console.error('Lỗi lấy danh sách người dùng:', error);
       res.status(500).json({
         success: false,
         message: 'Lỗi server khi lấy danh sách người dùng'
+      });
+    }
+  }
+
+  // Lấy danh sách người dùng cơ bản (cho non-admin)
+  static async getBasicUsersList(req, res) {
+    try {
+      // Lấy danh sách người dùng cơ bản (chỉ tên và username)
+      const users = await User.getAllBasic();
+      res.json({
+        success: true,
+        message: 'Lấy danh sách người dùng cơ bản thành công',
+        data: { users }
+      });
+    } catch (error) {
+      console.error('Lỗi lấy danh sách người dùng cơ bản:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Lỗi server khi lấy danh sách người dùng cơ bản'
       });
     }
   }

@@ -1,0 +1,4 @@
+STT,Ngày tạo giao dịch,Loại giao dịch,Người gửi,Người nhận,Số tiền,Điểm,Trạng thái giao dịch,Nội dung giao dịch,Nhóm tham chiếu
+1,2025-08-25 10:00:00,Chuyển tiền,Nguyễn Văn A,Nguyễn Văn B,50000,5,Thành công,Thanh toán dịch vụ xe,Nhóm Xe Sân Bay
+2,2025-08-25 11:30:00,Nhận tiền,Nguyễn Văn C,Nguyễn Văn D,75000,7,Thành công,Thu tiền xe,Nhóm Xe Sân Bay
+3,2025-08-25 14:15:00,Chuyển tiền,Nguyễn Văn E,Nguyễn Văn F,30000,3,Thành công,Thanh toán phí giao thông,Nhóm Xe Sân Bay

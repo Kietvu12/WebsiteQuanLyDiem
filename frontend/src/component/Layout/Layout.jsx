@@ -1,5 +1,7 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
+import { useAuth } from '../../contexts/AuthContext'
+import { useGlobalState } from '../../contexts/GlobalStateContext'
 import ProtectedRoute from '../../components/ProtectedRoute'
 import Sidebar from './Sidebar'
 import Header from './Header'
@@ -12,10 +14,27 @@ import ReportsPage from '../../page/ReportsPage/ReportsPage'
 
 const Layout = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+  const { user } = useAuth()
+  const { initializeRealTimeUpdates } = useGlobalState()
 
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen)
   }
+
+  // Khởi tạo real-time updates khi user đăng nhập
+  useEffect(() => {
+    if (user && user.id_nguoi_dung) {
+      const token = localStorage.getItem('authToken')
+      const isAdmin = user.la_admin === 1 || user.la_admin === true
+      
+      console.log('🚀 Initializing real-time updates for user:', user.ten_dang_nhap, 'Admin:', isAdmin)
+      
+      const cleanup = initializeRealTimeUpdates(token, user.id_nguoi_dung, isAdmin)
+      
+      // Cleanup khi component unmount
+      return cleanup
+    }
+  }, [user, initializeRealTimeUpdates])
 
   return (
     <div className="min-h-screen bg-gray-25">

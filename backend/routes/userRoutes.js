@@ -15,6 +15,9 @@ router.get('/profile', UserController.getProfile);
 router.put('/profile', UserController.updateUser);
 router.put('/profile/password', UserController.updatePassword);
 
+// Route lấy danh sách người dùng cơ bản (cho tất cả user đã đăng nhập)
+router.get('/basic-list', UserController.getBasicUsersList);
+
 // User-specific routes (các routes này có logic kiểm tra quyền riêng trong controller)
 router.get('/:id', UserController.getUserById);
 router.put('/:id', UserController.updateUser);

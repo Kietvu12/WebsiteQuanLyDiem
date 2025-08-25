@@ -1,6 +1,7 @@
 import './App.css'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
+import { GlobalStateProvider } from './contexts/GlobalStateContext'
 import LoginPage from './page/LoginPage/LoginPage'
 import Layout from './component/Layout/Layout'
 
@@ -97,9 +98,11 @@ const AppRoutes = () => {
 function App() {
   return (
     <AuthProvider>
-      <Router>
-        <AppRoutes />
-      </Router>
+      <GlobalStateProvider>
+        <Router>
+          <AppRoutes />
+        </Router>
+      </GlobalStateProvider>
     </AuthProvider>
   )
 }

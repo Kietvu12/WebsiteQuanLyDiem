@@ -4,20 +4,22 @@ import {
   CarOutlined, DollarOutlined, UserOutlined, EditOutlined,
   DeleteOutlined, FileTextOutlined, LoadingOutlined, ExclamationCircleOutlined
 } from '@ant-design/icons'
+import { useAuth } from '../../contexts/AuthContext'
+import { useGlobalState } from '../../contexts/GlobalStateContext'
 import { groupService } from '../../services/groupService'
 import { transactionService } from '../../services/transactionService'
 import { vehicleScheduleService } from '../../services/vehicleScheduleService'
-import { useAuth } from '../../contexts/AuthContext'
+import { reportService } from '../../services/reportService'
 
 const GroupsPage = () => {
   const { user, isAuthenticated } = useAuth()
+  const { groups, updateGroups, addGroup, updateGroup, removeGroup } = useGlobalState()
   const [searchGroup, setSearchGroup] = useState('')
   const [selectedGroup, setSelectedGroup] = useState(null)
   const [selectedMember, setSelectedMember] = useState(null)
   const [activeTab, setActiveTab] = useState('transactions')
   
   // State cho API
-  const [groups, setGroups] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [groupMembers, setGroupMembers] = useState({})
@@ -30,6 +32,8 @@ const GroupsPage = () => {
   const [showEditModal, setShowEditModal] = useState(false)
   const [showAddMemberModal, setShowAddMemberModal] = useState(false)
   const [showUserDetailModal, setShowUserDetailModal] = useState(false)
+  const [showExportReportModal, setShowExportReportModal] = useState(false)
+  const [exportingGroup, setExportingGroup] = useState(null)
   const [editingGroup, setEditingGroup] = useState(null)
   const [selectedUserDetail, setSelectedUserDetail] = useState(null)
   const [newGroupData, setNewGroupData] = useState({
@@ -72,7 +76,7 @@ const GroupsPage = () => {
       const response = await groupService.getAllGroups(token)
       
       if (response.success) {
-        setGroups(response.data.groups || response.data || [])
+        updateGroups(response.data.groups || response.data || [])
       } else {
         setError(response.message || 'Không thể lấy danh sách nhóm')
       }
@@ -90,7 +94,25 @@ const GroupsPage = () => {
     
     try {
       const token = localStorage.getItem('authToken')
-      const response = await fetch('http://localhost:5000/api/users', {
+      
+      // Thử lấy danh sách người dùng cơ bản trước (cho tất cả user)
+      let response = await fetch('http://localhost:5000/api/users/basic-list', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        }
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success) {
+          setAvailableUsers(data.data.users || [])
+          return
+        }
+      }
+      
+      // Nếu không được, thử lấy danh sách đầy đủ (chỉ admin)
+      response = await fetch('http://localhost:5000/api/users', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -100,10 +122,23 @@ const GroupsPage = () => {
       const data = await response.json()
       
       if (response.ok && data.success) {
-        setAvailableUsers(data.data.users || data.data || [])
+        setAvailableUsers(data.data.users || [])
+      } else if (response.status === 403) {
+        // Nếu không phải admin, lấy danh sách người dùng từ nhóm hiện tại
+        console.log('User không phải admin, lấy danh sách từ nhóm hiện tại')
+        if (selectedGroup) {
+          const groupMembers = groupMembers[selectedGroup.id_nhom] || []
+          setAvailableUsers(groupMembers)
+        } else {
+          setAvailableUsers([])
+        }
+      } else {
+        console.error('Error response:', data)
+        setAvailableUsers([])
       }
     } catch (error) {
       console.error('Error fetching available users:', error)
+      setAvailableUsers([])
     }
   }
 
@@ -195,7 +230,19 @@ const GroupsPage = () => {
       if (response.ok && data.success) {
         setShowCreateModal(false)
         setNewGroupData({ ten_nhom: '', mo_ta: '', memberIds: [] })
-        fetchGroups()
+        
+        // Cập nhật global state ngay lập tức
+        const newGroup = data.data
+        addGroup(newGroup)
+        
+        // Tạo thư mục báo cáo cho nhóm mới
+        try {
+          const token = localStorage.getItem('authToken')
+          await reportService.createGroupReportDirectory(token, newGroup.id_nhom, newGroup.ten_nhom)
+        } catch (error) {
+          console.warn('Không thể tạo thư mục báo cáo:', error.message)
+        }
+        
         setError(null)
       } else {
         setError(data.message || 'Không thể tạo nhóm')
@@ -226,7 +273,9 @@ const GroupsPage = () => {
       const data = await response.json()
       
       if (response.ok && data.success) {
-        fetchGroups()
+        // Cập nhật global state ngay lập tức
+        removeGroup(groupId)
+        
         if (selectedGroup?.id_nhom === groupId) {
           setSelectedGroup(null)
           setSelectedMember(null)
@@ -547,11 +596,38 @@ const GroupsPage = () => {
     return filtered
   }
 
+  // Xuất báo cáo nhóm
+  const handleExportReport = (group) => {
+    setExportingGroup(group)
+    setShowExportReportModal(true)
+  }
+
+  const handleExportGroupReport = async (startDate, endDate) => {
+    if (!exportingGroup) return
+    
+    setLoading(true)
+    try {
+      const token = localStorage.getItem('authToken')
+      const response = await reportService.exportGroupReport(token, exportingGroup.id_nhom, startDate, endDate)
+      
+      if (response.success) {
+        alert(`Xuất báo cáo thành công!\nFile: ${response.data.fileName}\nSố giao dịch: ${response.data.transactionCount}\nSố lịch xe: ${response.data.scheduleCount}`)
+        setShowExportReportModal(false)
+        setExportingGroup(null)
+      }
+    } catch (error) {
+      alert(`Lỗi khi xuất báo cáo: ${error.message}`)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   // Load dữ liệu khi component mount
   useEffect(() => {
     if (isAuthenticated) {
-      fetchGroups()
-      fetchAvailableUsers()
+      // Dữ liệu sẽ được load tự động từ real-time service
+      // Chỉ cần set loading false
+      setLoading(false)
     }
   }, [isAuthenticated])
 
@@ -566,6 +642,13 @@ const GroupsPage = () => {
       })
     }
   }, [groups])
+
+  // Load danh sách người dùng khi có nhóm được chọn
+  useEffect(() => {
+    if (selectedGroup) {
+      fetchAvailableUsers()
+    }
+  }, [selectedGroup])
 
   if (!isAuthenticated) {
     return (
@@ -645,111 +728,191 @@ const GroupsPage = () => {
               <p className="text-gray-500">Đang tải danh sách nhóm...</p>
             </div>
           ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tên nhóm</th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Số giao dịch</th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Tổng tiền</th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Tổng điểm</th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Thành viên</th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Thao tác</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                  {filteredGroups.length === 0 ? (
+            <>
+              {/* Desktop Table */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50">
                     <tr>
-                      <td colSpan="6" className="px-6 py-12 text-center text-gray-500">
-                        {searchGroup ? 'Không tìm thấy nhóm nào phù hợp' : 'Chưa có nhóm nào'}
-                      </td>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tên nhóm</th>
+                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Số giao dịch</th>
+                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Tổng tiền</th>
+                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Tổng điểm</th>
+                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Thành viên</th>
+                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Thao tác</th>
                     </tr>
-                  ) : (
-                    filteredGroups.map(group => {
-                      const stats = calculateGroupStats(group.id_nhom)
-                      return (
-                        <tr 
-                          key={group.id_nhom}
-                    className={`hover:bg-gray-50 cursor-pointer transition-colors ${
-                            selectedGroup?.id_nhom === group.id_nhom ? 'bg-blue-50' : ''
-                    }`}
-                    onClick={() => handleGroupClick(group)}
-                  >
-                    <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm font-medium text-gray-900">{group.ten_nhom}</div>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                      {filteredGroups.length === 0 ? (
+                        <tr>
+                          <td colSpan="6" className="px-6 py-12 text-center text-gray-500">
+                            {searchGroup ? 'Không tìm thấy nhóm nào phù hợp' : 'Chưa có nhóm nào'}
+                          </td>
+                        </tr>
+                      ) : (
+                        filteredGroups.map(group => {
+                          const stats = calculateGroupStats(group.id_nhom)
+                          return (
+                            <tr 
+                              key={group.id_nhom}
+                        className={`hover:bg-gray-50 cursor-pointer transition-colors ${
+                              selectedGroup?.id_nhom === group.id_nhom ? 'bg-blue-50' : ''
+                        }`}
+                        onClick={() => handleGroupClick(group)}
+                      >
+                        <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="text-sm font-medium text-gray-900">{group.ten_nhom}</div>
+                                {group.mo_ta && (
+                                  <div className="text-xs text-gray-500 mt-1">{group.mo_ta}</div>
+                                )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-center">
+                          <div className="flex items-center justify-center">
+                            <TransactionOutlined className="text-blue-500 mr-2" />
+                                  <span className="text-sm text-gray-900">{stats.transactionCount}</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-center">
+                          <div className="flex items-center justify-center">
+                            <DollarOutlined className="text-green-500 mr-2" />
+                                  <span className="text-sm text-gray-900">{stats.totalAmount} VNĐ</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-center">
+                          <div className="flex items-center justify-center">
+                            <TeamOutlined className="text-purple-500 mr-2" />
+                                  <span className="text-sm text-gray-900">{stats.totalPoints}</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-center">
+                                <span className="text-sm text-gray-900">
+                                  {(groupMembers[group.id_nhom] || []).length}
+                                </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-center">
+                          <div className="flex items-center justify-center space-x-2">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleExportReport(group)
+                              }}
+                              className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                              title="Xuất báo cáo"
+                            >
+                              <FileTextOutlined className="text-sm" />
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setEditingGroup(group)
+                                setShowEditModal(true)
+                                // Đảm bảo dữ liệu thành viên đã được load
+                                if (!groupMembers[group.id_nhom]) {
+                                  fetchGroupMembers(group.id_nhom)
+                                }
+                              }}
+                              className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                              title="Sửa thông tin"
+                            >
+                              <EditOutlined className="text-sm" />
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                      handleDeleteGroup(group.id_nhom)
+                              }}
+                              className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                              title="Xóa nhóm"
+                            >
+                              <DeleteOutlined className="text-sm" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                          )
+                        })
+                      )}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile Cards */}
+              <div className="md:hidden p-4 space-y-4">
+                {filteredGroups.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <TeamOutlined className="text-4xl mb-2 text-gray-300 mx-auto block" />
+                    <p>{searchGroup ? 'Không tìm thấy nhóm nào phù hợp' : 'Chưa có nhóm nào'}</p>
+                  </div>
+                ) : (
+                  filteredGroups.map(group => {
+                    const stats = calculateGroupStats(group.id_nhom)
+                    return (
+                      <div
+                        key={group.id_nhom}
+                        className={`p-4 border border-gray-200 rounded-lg cursor-pointer transition-colors ${
+                          selectedGroup?.id_nhom === group.id_nhom ? 'bg-blue-50 border-blue-300' : 'hover:bg-gray-50'
+                        }`}
+                        onClick={() => handleGroupClick(group)}
+                      >
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex-1">
+                            <h4 className="font-medium text-gray-900 text-base">{group.ten_nhom}</h4>
                             {group.mo_ta && (
-                              <div className="text-xs text-gray-500 mt-1">{group.mo_ta}</div>
+                              <p className="text-sm text-gray-500 mt-1">{group.mo_ta}</p>
                             )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-center">
-                      <div className="flex items-center justify-center">
-                        <TransactionOutlined className="text-blue-500 mr-2" />
-                              <span className="text-sm text-gray-900">{stats.transactionCount}</span>
+                          </div>
+                          <div className="flex items-center space-x-2 ml-3">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setEditingGroup(group)
+                                setShowEditModal(true)
+                                if (!groupMembers[group.id_nhom]) {
+                                  fetchGroupMembers(group.id_nhom)
+                                }
+                              }}
+                              className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                              title="Sửa thông tin"
+                            >
+                              <EditOutlined className="text-sm" />
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleDeleteGroup(group.id_nhom)
+                              }}
+                              className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                              title="Xóa nhóm"
+                            >
+                              <DeleteOutlined className="text-sm" />
+                            </button>
+                          </div>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-3 text-sm">
+                          <div className="flex items-center justify-center p-2 bg-blue-50 rounded-lg">
+                            <TransactionOutlined className="text-blue-500 mr-2" />
+                            <span className="font-medium">{stats.transactionCount} giao dịch</span>
+                          </div>
+                          <div className="flex items-center justify-center p-2 bg-green-50 rounded-lg">
+                            <DollarOutlined className="text-green-500 mr-2" />
+                            <span className="font-medium">{stats.totalAmount} VNĐ</span>
+                          </div>
+                          <div className="flex items-center justify-center p-2 bg-purple-50 rounded-lg">
+                            <TeamOutlined className="text-purple-500 mr-2" />
+                            <span className="font-medium">{stats.totalPoints} điểm</span>
+                          </div>
+                          <div className="flex items-center justify-center p-2 bg-orange-50 rounded-lg">
+                            <UserOutlined className="text-orange-500 mr-2" />
+                            <span className="font-medium">{(groupMembers[group.id_nhom] || []).length} thành viên</span>
+                          </div>
+                        </div>
                       </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-center">
-                      <div className="flex items-center justify-center">
-                        <DollarOutlined className="text-green-500 mr-2" />
-                              <span className="text-sm text-gray-900">{stats.totalAmount} VNĐ</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-center">
-                      <div className="flex items-center justify-center">
-                        <TeamOutlined className="text-purple-500 mr-2" />
-                              <span className="text-sm text-gray-900">{stats.totalPoints}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-center">
-                            <span className="text-sm text-gray-900">
-                              {(groupMembers[group.id_nhom] || []).length}
-                            </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-center">
-                      <div className="flex items-center justify-center space-x-2">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                                  // handleExportReport(group.id_nhom)
-                          }}
-                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                          title="Xuất báo cáo"
-                        >
-                          <FileTextOutlined className="text-sm" />
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setEditingGroup(group)
-                            setShowEditModal(true)
-                            // Đảm bảo dữ liệu thành viên đã được load
-                            if (!groupMembers[group.id_nhom]) {
-                              fetchGroupMembers(group.id_nhom)
-                            }
-                          }}
-                          className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                          title="Sửa thông tin"
-                        >
-                          <EditOutlined className="text-sm" />
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                                  handleDeleteGroup(group.id_nhom)
-                          }}
-                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                          title="Xóa nhóm"
-                        >
-                          <DeleteOutlined className="text-sm" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                      )
-                    })
-                  )}
-              </tbody>
-            </table>
-          </div>
+                    )
+                  })
+                )}
+              </div>
+            </>
           )}
         </div>
 
@@ -766,20 +929,11 @@ const GroupsPage = () => {
                     <p className="text-sm text-gray-500 mt-1">Đang tải danh sách thành viên...</p>
                   )}
             </div>
-                <button
-                  onClick={() => {
-                    setNewMemberData({ userId: '', groupId: selectedGroup.id_nhom })
-                    setShowAddMemberModal(true)
-                  }}
-                  className="flex items-center space-x-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
-                >
-                  <PlusOutlined className="text-sm" />
-                  <span>Thêm thành viên</span>
-                </button>
               </div>
             </div>
             
-            <div className="overflow-x-auto">
+            {/* Desktop Table */}
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-gray-50">
                   <tr>
@@ -851,6 +1005,57 @@ const GroupsPage = () => {
                 </tbody>
               </table>
             </div>
+
+            {/* Mobile Cards */}
+            <div className="md:hidden p-4 space-y-3">
+              {(groupMembers[selectedGroup.id_nhom] || []).length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  <UserOutlined className="text-4xl mb-2 text-gray-300 mx-auto block" />
+                  <p>Chưa có thành viên nào trong nhóm</p>
+                </div>
+              ) : (
+                (groupMembers[selectedGroup.id_nhom] || []).map(member => {
+                  const memberTransactions = (groupTransactions[selectedGroup.id_nhom] || [])
+                    .filter(t => t.id_nguoi_gui === member.id_nguoi_dung || t.id_nguoi_nhan === member.id_nguoi_dung)
+                  
+                  const memberSchedules = (groupSchedules[selectedGroup.id_nhom] || [])
+                    .filter(s => s.id_nguoi_tao === member.id_nguoi_dung || s.id_nguoi_nhan === member.id_nguoi_dung)
+                  
+                  return (
+                    <div
+                      key={member.id_nguoi_dung}
+                      className={`p-4 border border-gray-200 rounded-lg cursor-pointer transition-colors ${
+                        selectedMember?.id_nguoi_dung === member.id_nguoi_dung ? 'bg-blue-50 border-blue-300' : 'hover:bg-gray-50'
+                      }`}
+                      onClick={() => handleUserDetailClick(member)}
+                    >
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center">
+                          <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center mr-3">
+                            <UserOutlined className="text-white text-sm" />
+                          </div>
+                          <div>
+                            <div className="font-medium text-gray-900">{member.ho_ten}</div>
+                            <div className="text-sm text-gray-500">{member.ten_dang_nhap}</div>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div className="flex items-center justify-center p-2 bg-blue-50 rounded-lg">
+                          <CarOutlined className="text-blue-500 mr-2" />
+                          <span className="font-medium">{memberSchedules.length} lịch xe</span>
+                        </div>
+                        <div className="flex items-center justify-center p-2 bg-green-50 rounded-lg">
+                          <TransactionOutlined className="text-green-500 mr-2" />
+                          <span className="font-medium">{memberTransactions.length} giao dịch</span>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })
+              )}
+            </div>
           </div>
         )}
 
@@ -884,7 +1089,11 @@ const GroupsPage = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-2">Thêm thành viên (không bắt buộc)</label>
                   <div className="max-h-40 overflow-y-auto border border-gray-200 rounded-lg p-2">
                     {availableUsers.length === 0 ? (
-                      <p className="text-gray-500 text-sm">Đang tải danh sách người dùng...</p>
+                      <div className="text-center py-4">
+                        <p className="text-gray-500 text-sm">
+                          Đang tải danh sách người dùng...
+                        </p>
+                      </div>
                     ) : (
                       availableUsers.map(user => (
                         <label key={user.id_nguoi_dung} className="flex items-center space-x-2 p-2 hover:bg-gray-50 rounded">
@@ -980,7 +1189,11 @@ const GroupsPage = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-2">Thêm thành viên mới</label>
                   <div className="max-h-32 overflow-y-auto border border-gray-200 rounded-lg p-2">
                     {availableUsers.length === 0 ? (
-                      <p className="text-gray-500 text-sm">Đang tải danh sách người dùng...</p>
+                      <div className="text-center py-4">
+                        <p className="text-gray-500 text-sm">
+                          Đang tải danh sách người dùng...
+                        </p>
+                      </div>
                     ) : (
                       availableUsers
                         .filter(user => !(groupMembers[editingGroup.id_nhom] || [])
@@ -995,7 +1208,7 @@ const GroupsPage = () => {
                                   handleAddMemberToExistingGroup(editingGroup.id_nhom, user.id_nguoi_dung)
                                 }
                               }}
-                              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                              className="rounded border-gray-500 text-blue-600 focus:ring-blue-500"
                             />
                             <span className="text-sm text-gray-700">{user.ho_ten} ({user.ten_dang_nhap})</span>
                           </label>
@@ -1033,7 +1246,11 @@ const GroupsPage = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-2">Chọn người dùng để thêm</label>
                   <div className="max-h-60 overflow-y-auto border border-gray-200 rounded-lg p-2">
                     {availableUsers.length === 0 ? (
-                      <p className="text-gray-500 text-sm">Đang tải danh sách người dùng...</p>
+                      <div className="text-center py-4">
+                        <p className="text-gray-500 text-sm">
+                          Đang tải danh sách người dùng...
+                        </p>
+                      </div>
                     ) : (
                       availableUsers
                         .filter(user => !(groupMembers[newMemberData.groupId] || [])
@@ -1052,7 +1269,7 @@ const GroupsPage = () => {
                               }}
                               className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                             />
-                            <span className="text-sm text-gray-700">{user.ho_ten} ({user.ten_dang_nhap})</span>
+                            <span className="text-xs text-gray-700">{user.ho_ten} ({user.ten_dang_nhap})</span>
                           </label>
                         ))
                     )}
@@ -1363,6 +1580,71 @@ const GroupsPage = () => {
                   </div>
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* Export Report Modal */}
+        {showExportReportModal && exportingGroup && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-2xl p-6 w-full max-w-lg">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">
+                Xuất báo cáo nhóm: {exportingGroup.ten_nhom}
+              </h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Từ ngày</label>
+                  <input
+                    type="date"
+                    id="startDate"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    defaultValue={new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Đến ngày</label>
+                  <input
+                    type="date"
+                    id="endDate"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    defaultValue={new Date().toISOString().split('T')[0]}
+                  />
+                </div>
+                <div className="text-sm text-gray-600 bg-blue-50 p-3 rounded-lg">
+                  <p>Báo cáo sẽ bao gồm:</p>
+                  <ul className="list-disc list-inside mt-2 space-y-1">
+                    <li>Tất cả giao dịch trong nhóm</li>
+                    <li>Tất cả lịch xe trong nhóm</li>
+                    <li>Thống kê chi tiết theo thời gian</li>
+                  </ul>
+                </div>
+              </div>
+              <div className="flex space-x-3 mt-6">
+                <button
+                  onClick={() => {
+                    setShowExportReportModal(false)
+                    setExportingGroup(null)
+                  }}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Hủy
+                </button>
+                <button
+                  onClick={() => {
+                    const startDate = document.getElementById('startDate').value
+                    const endDate = document.getElementById('endDate').value
+                    if (startDate && endDate) {
+                      handleExportGroupReport(startDate, endDate)
+                    } else {
+                      alert('Vui lòng chọn khoảng thời gian')
+                    }
+                  }}
+                  disabled={loading}
+                  className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50"
+                >
+                  {loading ? 'Đang xuất...' : 'Xuất báo cáo'}
+                </button>
+              </div>
             </div>
           </div>
         )}

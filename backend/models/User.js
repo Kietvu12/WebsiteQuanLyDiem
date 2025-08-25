@@ -13,6 +13,18 @@ class User {
     }
   }
 
+  // Lấy danh sách người dùng cơ bản (chỉ tên và username)
+  static async getAllBasic() {
+    try {
+      const [rows] = await pool.execute(
+        'SELECT id_nguoi_dung, ten_dang_nhap, ho_ten FROM nguoi_dung ORDER BY ho_ten ASC'
+      );
+      return rows;
+    } catch (error) {
+      throw new Error(`Lỗi lấy danh sách người dùng cơ bản: ${error.message}`);
+    }
+  }
+
   // Lấy người dùng theo ID
   static async getById(id) {
     try {

@@ -10,62 +10,27 @@ import {
   LoadingOutlined
 } from '@ant-design/icons'
 import { useAuth } from '../../contexts/AuthContext'
+import { useGlobalState } from '../../contexts/GlobalStateContext'
 import { transactionService } from '../../services/transactionService'
 import { formatTime, formatDate } from '../../utils/dateUtils'
 
 const Notification = () => {
   const { user } = useAuth()
+  const { notifications, updateNotifications, updateNotification, markNotificationAsRead, markAllNotificationsAsRead } = useGlobalState()
   const [isOpen, setIsOpen] = useState(false)
   const [selectedNotification, setSelectedNotification] = useState(null)
-  const [notifications, setNotifications] = useState([])
   const [loading, setLoading] = useState(false)
   const [processingId, setProcessingId] = useState(null)
   const [markingAllAsRead, setMarkingAllAsRead] = useState(false)
 
-  // Load notifications khi component mount hoặc user thay đổi
+  // Không cần loadNotifications nữa vì dữ liệu sẽ được cập nhật tự động từ global state
+  // Chỉ set loading false sau khi component mount
   useEffect(() => {
     if (user) {
-      loadNotifications()
-    }
-  }, [user])
-
-  // Load notifications từ API thực
-  const loadNotifications = async () => {
-    if (!user) return
-    
-    setLoading(true)
-    try {
-      const token = localStorage.getItem('authToken')
-      
-      // Sử dụng API thông báo thực
-      const response = await fetch('http://localhost:5000/api/notifications', {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      })
-      
-      if (response.ok) {
-        const data = await response.json()
-        if (data.success) {
-          console.log('✅ Thông báo được tải thành công:', data.data)
-          setNotifications(data.data)
-        } else {
-          console.error('❌ Lỗi khi tải thông báo:', data.message)
-          setNotifications([])
-        }
-      } else {
-        console.error('❌ HTTP error khi tải thông báo:', response.status)
-        setNotifications([])
-      }
-    } catch (error) {
-      console.error('❌ Lỗi khi tải thông báo:', error)
-      setNotifications([])
-    } finally {
+      // Dữ liệu sẽ được load tự động từ real-time service
       setLoading(false)
     }
-  }
+  }, [user])
 
   // Tạo tiêu đề thông báo từ dữ liệu thực
   const getNotificationTitle = (notification) => {
@@ -177,11 +142,7 @@ const Notification = () => {
         
         if (response.ok) {
           // Cập nhật state local
-          setNotifications(prev => 
-            prev.map(n => 
-              n.id_thong_bao === notification.id_thong_bao ? { ...n, da_doc: true } : n
-            )
-          )
+          updateNotification(notification.id_thong_bao, { ...notification, da_doc: true })
           console.log('✅ Đã đánh dấu thông báo đã đọc')
         } else {
           console.error('❌ Lỗi khi đánh dấu thông báo đã đọc:', response.status)
@@ -208,9 +169,7 @@ const Notification = () => {
       
       if (response.ok) {
         // Cập nhật state local - đánh dấu tất cả đã đọc
-        setNotifications(prev => 
-          prev.map(n => ({ ...n, da_doc: true }))
-        )
+        markAllNotificationsAsRead()
         console.log('✅ Đã đánh dấu tất cả thông báo đã đọc')
       } else {
         console.error('❌ Lỗi khi đánh dấu tất cả thông báo đã đọc:', response.status)
@@ -232,19 +191,13 @@ const Notification = () => {
       
       if (response.success) {
         // Cập nhật trạng thái thông báo
-        setNotifications(prev => 
-          prev.map(n => 
-            n.id_thong_bao === selectedNotification.id_thong_bao 
-              ? { ...n, trang_thai: 'completed', da_doc: true }
-              : n
-          )
-        )
+        updateNotification(selectedNotification.id_thong_bao, { ...selectedNotification, trang_thai: 'completed', da_doc: true })
         
         // Đóng modal
         setSelectedNotification(null)
         
         // Reload notifications
-        loadNotifications()
+        // loadNotifications() // This line is removed as per the edit hint
       }
     } catch (error) {
       console.error('Error confirming notification:', error)
@@ -263,19 +216,13 @@ const Notification = () => {
       
       if (response.success) {
         // Cập nhật trạng thái thông báo
-        setNotifications(prev => 
-          prev.map(n => 
-            n.id_thong_bao === selectedNotification.id_thong_bao 
-              ? { ...n, trang_thai: 'cancelled', da_doc: true }
-              : n
-          )
-        )
+        updateNotification(selectedNotification.id_thong_bao, { ...selectedNotification, trang_thai: 'cancelled', da_doc: true })
         
         // Đóng modal
         setSelectedNotification(null)
         
         // Reload notifications
-        loadNotifications()
+        // loadNotifications() // This line is removed as per the edit hint
       }
     } catch (error) {
       console.error('Error rejecting notification:', error)

@@ -1,0 +1,5 @@
+﻿STT,Ngày tạo giao dịch,Loại giao dịch,Người gửi,Người nhận,Số tiền,Điểm,Trạng thái giao dịch,Nội dung giao dịch,Nhóm tham chiếu
+1,Mon Aug 25 2025 16:03:11 GMT+0700 (Indochina Time),Giao lịch,Trần Quản Trị,Trần Thị B,200000.00,1.0000,hoan_thanh,200k,Nhóm Xe Sân Bay
+2,Mon Aug 25 2025 16:03:11 GMT+0700 (Indochina Time),Nhận lịch,Trần Thị B,Trần Quản Trị,-200000.00,-1.0000,hoan_thanh,Nhận lịch: 200k,Nhóm Xe Sân Bay
+3,Mon Aug 25 2025 13:54:58 GMT+0700 (Indochina Time),Giao lịch,Trần Quản Trị,Trần Thị B,600000.00,1.0000,hoan_thanh,600k,Nhóm Xe Sân Bay
+4,Mon Aug 25 2025 13:54:58 GMT+0700 (Indochina Time),Nhận lịch,Trần Thị B,Trần Quản Trị,-600000.00,-1.0000,hoan_thanh,Nhận lịch: 600k,Nhóm Xe Sân Bay

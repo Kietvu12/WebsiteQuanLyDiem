@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { 
   SearchOutlined,
   FileExcelOutlined,
@@ -10,7 +10,9 @@ import {
   TeamOutlined,
   UserOutlined,
   FileZipOutlined,
-  EyeOutlined
+  EyeOutlined,
+  LoadingOutlined,
+  ExclamationCircleOutlined
 } from '@ant-design/icons'
 
 const ReportsPage = () => {
@@ -24,6 +26,12 @@ const ReportsPage = () => {
   const [showContextMenu, setShowContextMenu] = useState(false)
   const [contextMenuPosition, setContextMenuPosition] = useState({ x: 0, y: 0 })
   const [selectedContextItem, setSelectedContextItem] = useState(null)
+  
+  // State cho API
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [reports, setReports] = useState([])
+  const [reportFolders, setReportFolders] = useState([])
 
   const recentFiles = [
     {
@@ -92,192 +100,7 @@ const ReportsPage = () => {
     }
   ]
 
-  const reportFolders = [
-    {
-      id: 1,
-      name: 'Báo cáo nhóm Vận chuyển 1 từ ngày 01/01/2024 đến 31/01/2024',
-      type: 'group',
-      groupName: 'Vận chuyển 1',
-      dateRange: '01/01/2024 - 31/01/2024',
-      fileCount: 8,
-      createdDate: '2024-01-15',
-      files: [
-        {
-          id: 1,
-          name: 'Báo cáo giao dịch - Vận chuyển 1.xlsx',
-          type: 'excel',
-          size: '1.2 MB',
-          createdDate: '2024-01-15 10:30'
-        },
-        {
-          id: 2,
-          name: 'Báo cáo lịch xe - Vận chuyển 1.xlsx',
-          type: 'excel',
-          size: '0.8 MB',
-          createdDate: '2024-01-15 11:15'
-        }
-      ]
-    },
-    {
-      id: 2,
-      name: 'Báo cáo của người dùng Nguyễn Văn A từ ngày 01/01/2024 đến 15/01/2024',
-      type: 'user',
-      userName: 'Nguyễn Văn A',
-      dateRange: '01/01/2024 - 15/01/2024',
-      fileCount: 5,
-      createdDate: '2024-01-15',
-      files: [
-        {
-          id: 3,
-          name: 'Báo cáo giao dịch - Nguyễn Văn A.xlsx',
-          type: 'excel',
-          size: '0.9 MB',
-          createdDate: '2024-01-15 14:20'
-        },
-        {
-          id: 4,
-          name: 'Báo cáo lịch xe - Nguyễn Văn A.xlsx',
-          type: 'excel',
-          size: '0.6 MB',
-          createdDate: '2024-01-15 14:25'
-        }
-      ]
-    },
-    {
-      id: 3,
-      name: 'Báo cáo nhóm Vận chuyển 2 từ ngày 01/01/2024 đến 31/01/2024',
-      type: 'group',
-      groupName: 'Vận chuyển 2',
-      dateRange: '01/01/2024 - 31/01/2024',
-      fileCount: 6,
-      createdDate: '2024-01-14',
-      files: []
-    },
-    {
-      id: 4,
-      name: 'Báo cáo tổng hợp toàn công ty - Q4 2023',
-      type: 'company',
-      companyName: 'Toàn công ty',
-      dateRange: '01/10/2023 - 31/12/2023',
-      fileCount: 12,
-      createdDate: '2024-01-13',
-      files: [
-        {
-          id: 5,
-          name: 'Báo cáo tài chính tổng hợp.xlsx',
-          type: 'excel',
-          size: '5.2 MB',
-          createdDate: '2024-01-13 09:30'
-        },
-        {
-          id: 6,
-          name: 'Báo cáo nhân sự tổng hợp.xlsx',
-          type: 'excel',
-          size: '2.8 MB',
-          createdDate: '2024-01-13 10:15'
-        }
-      ]
-    },
-    {
-      id: 5,
-      name: 'Báo cáo người dùng Lê Văn C từ ngày 01/12/2023 đến 31/12/2023',
-      type: 'user',
-      userName: 'Lê Văn C',
-      dateRange: '01/12/2023 - 31/12/2023',
-      fileCount: 7,
-      createdDate: '2024-01-12',
-      files: [
-        {
-          id: 7,
-          name: 'Báo cáo giao dịch cá nhân.xlsx',
-          type: 'excel',
-          size: '1.1 MB',
-          createdDate: '2024-01-12 16:45'
-        }
-      ]
-    },
-    {
-      id: 6,
-      name: 'Báo cáo nhóm Vận chuyển 3 từ ngày 01/01/2024 đến 31/01/2024',
-      type: 'group',
-      groupName: 'Vận chuyển 3',
-      dateRange: '01/01/2024 - 31/01/2024',
-      fileCount: 9,
-      createdDate: '2024-01-11',
-      files: [
-        {
-          id: 8,
-          name: 'Báo cáo hiệu suất nhóm.xlsx',
-          type: 'excel',
-          size: '2.3 MB',
-          createdDate: '2024-01-11 13:20'
-        }
-      ]
-    },
-    {
-      id: 7,
-      name: 'Báo cáo người dùng Hoàng Văn E từ ngày 01/11/2023 đến 30/11/2023',
-      type: 'user',
-      userName: 'Hoàng Văn E',
-      dateRange: '01/11/2023 - 30/11/2023',
-      fileCount: 4,
-      createdDate: '2024-01-10',
-      files: []
-    },
-    {
-      id: 8,
-      name: 'Báo cáo nhóm Vận chuyển 4 từ ngày 01/01/2024 đến 31/01/2024',
-      type: 'group',
-      groupName: 'Vận chuyển 4',
-      dateRange: '01/01/2024 - 31/01/2024',
-      fileCount: 11,
-      createdDate: '2024-01-09',
-      files: [
-        {
-          id: 9,
-          name: 'Báo cáo chi phí vận hành.xlsx',
-          type: 'excel',
-          size: '3.7 MB',
-          createdDate: '2024-01-09 11:45'
-        },
-        {
-          id: 10,
-          name: 'Báo cáo an toàn giao thông.xlsx',
-          type: 'excel',
-          size: '1.9 MB',
-          createdDate: '2024-01-09 12:30'
-        }
-      ]
-    },
-    {
-      id: 9,
-      name: 'Báo cáo người dùng Trần Thị F từ ngày 01/10/2023 đến 31/10/2023',
-      type: 'user',
-      userName: 'Trần Thị F',
-      dateRange: '01/10/2023 - 31/10/2023',
-      fileCount: 6,
-      createdDate: '2024-01-08',
-      files: [
-        {
-          id: 11,
-          name: 'Báo cáo hoạt động cá nhân.xlsx',
-          type: 'excel',
-          size: '1.4 MB',
-          createdDate: '2024-01-08 15:20'
-        }
-      ]
-    },
-    {
-      id: 10,
-      name: 'Báo cáo nhóm Vận chuyển 5 từ ngày 01/01/2024 đến 31/01/2024',
-      type: 'group',
-      groupName: 'Vận chuyển 5',
-      dateRange: '01/01/2024 - 31/01/2024',
-      fileCount: 8,
-      createdDate: '2024-01-07',
-      files: []
-    }
-  ]
+  // Xóa dữ liệu mock cũ - thay thế bằng state
 
   const handleFolderClick = (folder) => {
     setSelectedFolder(folder)
@@ -309,17 +132,216 @@ const ReportsPage = () => {
     }
   }
 
-  const handleDownloadFile = (file) => {
-    console.log('Tải về file:', file.name)
-    // Xử lý logic tải về file
-  }
+  const handleDownloadFile = async (file) => {
+    try {
+      const token = localStorage.getItem('authToken')
+      if (!token) {
+        alert('Vui lòng đăng nhập để tải file')
+        return
+      }
 
-  const handleDeleteFile = (file) => {
-    if (window.confirm('Bạn có chắc chắn muốn xóa file này?')) {
-      console.log('Xóa file:', file.name)
-      // Xử lý logic xóa file
+      // Tìm report ID từ database dựa trên đường dẫn file
+      const response = await fetch(`http://localhost:5000/api/reports/download-by-path`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          filePath: file.path
+        })
+      })
+
+      if (response.ok) {
+        const blob = await response.blob()
+        const url = window.URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = file.name
+        document.body.appendChild(a)
+        a.click()
+        window.URL.revokeObjectURL(url)
+        document.body.removeChild(a)
+      } else {
+        alert('Không thể tải file')
+      }
+    } catch (error) {
+      console.error('Error downloading file:', error)
+      alert('Lỗi khi tải file')
     }
   }
+
+  const handleDeleteFile = async (file) => {
+    if (window.confirm('Bạn có chắc chắn muốn xóa file này?')) {
+      try {
+        const token = localStorage.getItem('authToken')
+        if (!token) {
+          alert('Vui lòng đăng nhập để xóa file')
+          return
+        }
+
+        // Tìm và xóa report từ database dựa trên đường dẫn file
+        const response = await fetch(`http://localhost:5000/api/reports/delete-by-path`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            filePath: file.path
+          })
+        })
+
+        if (response.ok) {
+          // Làm mới danh sách
+          loadReports()
+          loadReportFolders()
+          setSelectedFolder(null)
+          alert('Đã xóa file thành công')
+        } else {
+          alert('Không thể xóa file')
+        }
+      } catch (error) {
+        console.error('Error deleting file:', error)
+        alert('Lỗi khi xóa file')
+      }
+    }
+  }
+
+  // Load danh sách báo cáo từ API
+  const loadReports = async () => {
+    setLoading(true)
+    setError('')
+    
+    try {
+      const token = localStorage.getItem('authToken')
+      if (!token) {
+        setError('Vui lòng đăng nhập để xem báo cáo')
+        return
+      }
+
+      const response = await fetch('http://localhost:5000/api/reports/list', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        }
+      })
+
+      const data = await response.json()
+      
+      if (response.ok && data.success) {
+        setReports(data.data || [])
+      } else {
+        setError(data.message || 'Không thể tải danh sách báo cáo')
+      }
+    } catch (error) {
+      console.error('Error loading reports:', error)
+      setError('Lỗi khi tải danh sách báo cáo')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Tải về báo cáo
+  const handleDownloadReport = async (report) => {
+    try {
+      const token = localStorage.getItem('authToken')
+      if (!token) {
+        alert('Vui lòng đăng nhập để tải báo cáo')
+        return
+      }
+
+      const response = await fetch(`http://localhost:5000/api/reports/download/${report.id_bao_cao}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        }
+      })
+
+      if (response.ok) {
+        // Tạo blob và tải về
+        const blob = await response.blob()
+        const url = window.URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = report.duong_dan_file.split('/').pop() || `report-${report.id_bao_cao}.csv`
+        document.body.appendChild(a)
+        a.click()
+        window.URL.revokeObjectURL(url)
+        document.body.removeChild(a)
+      } else {
+        const data = await response.json()
+        alert(data.message || 'Lỗi khi tải báo cáo')
+      }
+    } catch (error) {
+      console.error('Error downloading report:', error)
+      alert('Lỗi khi tải báo cáo')
+    }
+  }
+
+  // Xóa báo cáo
+  const handleDeleteReport = async (report) => {
+    if (!window.confirm('Bạn có chắc chắn muốn xóa báo cáo này?')) {
+      return
+    }
+
+    try {
+      const token = localStorage.getItem('authToken')
+      if (!token) {
+        alert('Vui lòng đăng nhập để xóa báo cáo')
+        return
+      }
+
+      const response = await fetch(`http://localhost:5000/api/reports/${report.id_bao_cao}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        }
+      })
+
+      const data = await response.json()
+      
+      if (response.ok && data.success) {
+        alert('Xóa báo cáo thành công')
+        loadReports() // Reload danh sách
+      } else {
+        alert(data.message || 'Lỗi khi xóa báo cáo')
+      }
+    } catch (error) {
+      console.error('Error deleting report:', error)
+      alert('Lỗi khi xóa báo cáo')
+    }
+  }
+
+  // Load danh sách folder báo cáo từ hệ thống file
+  const loadReportFolders = async () => {
+    try {
+      const token = localStorage.getItem('authToken')
+      if (!token) return
+
+      const response = await fetch('http://localhost:5000/api/reports/folders', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        }
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success) {
+          setReportFolders(data.data)
+        }
+      }
+    } catch (error) {
+      console.error('Error loading report folders:', error)
+    }
+  }
+
+  // Load dữ liệu khi component mount
+  useEffect(() => {
+    loadReports()
+    loadReportFolders()
+  }, [])
 
   const getFolderIcon = (type) => {
     switch (type) {
@@ -342,39 +364,83 @@ const ReportsPage = () => {
     <div className="min-h-screen bg-gray-25">
       <div className="max-w-7xl mx-auto">
         
-        {/* 1. Recent Files Section - Horizontal Scroll */}
-        <div className="mb-8">
-          <h3 className="text-lg font-semibold text-gray-800 mb-4">Các file tạo gần đây</h3>
-          <div className="relative">
-            <div 
-              className="flex space-x-6 overflow-x-auto pb-4"
-              style={{
-                scrollbarWidth: 'none',
-                msOverflowStyle: 'none',
-                WebkitScrollbar: { display: 'none' }
-              }}
-            >
-              {recentFiles.map(file => (
-                <div
-                  key={file.id}
-                  className="bg-white p-6 rounded-lg cursor-pointer transition-colors hover:bg-gray-50 flex-shrink-0 w-80"
-                  onContextMenu={(e) => handleContextMenu(e, { ...file, type: 'recent-file' })}
-                >
-                  <div className="w-24 h-24 bg-green-100 rounded-lg flex items-center justify-center mx-auto mb-4">
-                    <FileExcelOutlined className="text-6xl text-green-600" />
-                  </div>
-                  <div className="text-center">
-                    <h4 className="font-medium text-gray-800 text-sm leading-tight mb-2">{file.name}</h4>
-                    <p className="text-xs text-gray-500">
-                      {file.size} • {file.lastModified}
-                    </p>
-                  </div>
-                </div>
-              ))}
+        {/* Error Message */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6">
+            <div className="flex items-center">
+              <ExclamationCircleOutlined className="text-red-500 mr-2" />
+              <span className="text-red-700">{error}</span>
+              <button
+                onClick={() => setError('')}
+                className="ml-auto text-red-400 hover:text-red-600"
+              >
+                ×
+              </button>
             </div>
-            {/* Fade effect on right */}
-            <div className="absolute right-0 top-0 bottom-4 w-20 bg-gradient-to-l from-gray-25 to-transparent pointer-events-none"></div>
           </div>
+        )}
+
+        {/* 1. Recent Reports Section - Horizontal Scroll */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-800">Các báo cáo gần đây</h3>
+            <button
+              onClick={loadReports}
+              disabled={loading}
+              className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 text-sm"
+            >
+              {loading ? <LoadingOutlined className="mr-2" /> : null}
+              Làm mới
+            </button>
+          </div>
+          
+          {loading ? (
+            <div className="flex items-center justify-center py-8">
+              <LoadingOutlined className="text-2xl text-blue-500 animate-spin mr-3" />
+              <span className="text-gray-500">Đang tải danh sách báo cáo...</span>
+            </div>
+          ) : reports.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              <FileExcelOutlined className="text-4xl mb-2 text-gray-300 mx-auto block" />
+              <p>Chưa có báo cáo nào</p>
+            </div>
+          ) : (
+            <div className="relative">
+              <div 
+                className="flex space-x-6 overflow-x-auto pb-4"
+                style={{
+                  scrollbarWidth: 'none',
+                  msOverflowStyle: 'none',
+                  WebkitScrollbar: { display: 'none' }
+                }}
+              >
+                {reports.slice(0, 8).map(report => (
+                  <div
+                    key={report.id_bao_cao}
+                    className="bg-white p-6 rounded-lg cursor-pointer transition-colors hover:bg-gray-50 flex-shrink-0 w-80"
+                    onContextMenu={(e) => handleContextMenu(e, { ...report, type: 'recent-file' })}
+                  >
+                    <div className="w-24 h-24 bg-green-100 rounded-lg flex items-center justify-center mx-auto mb-4">
+                      <FileExcelOutlined className="text-6xl text-green-600" />
+                    </div>
+                    <div className="text-center">
+                      <h4 className="font-medium text-gray-800 text-sm leading-tight mb-2">
+                        {report.duong_dan_file.split('/').pop()}
+                      </h4>
+                      <p className="text-xs text-gray-500">
+                        {report.ten_nhom ? `Nhóm: ${report.ten_nhom}` : 'Người dùng'} • {new Date(report.ngay_bao_cao).toLocaleDateString('vi-VN')}
+                      </p>
+                      <p className="text-xs text-gray-400 mt-1">
+                        {new Date(report.ngay_tao_bao_cao).toLocaleString('vi-VN')}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {/* Fade effect on right */}
+              <div className="absolute right-0 top-0 bottom-4 w-20 bg-gradient-to-l from-gray-25 to-transparent pointer-events-none"></div>
+            </div>
+          )}
         </div>
 
         {/* 2. Report Folders Section - Horizontal Scroll */}
@@ -547,6 +613,49 @@ const ReportsPage = () => {
                 </tbody>
               </table>
             </div>
+
+            {/* Mobile Cards */}
+            <div className="md:hidden p-4 space-y-3">
+              {selectedFolder.files.length > 0 ? (
+                selectedFolder.files.map(file => (
+                  <div key={file.id} className="p-4 border border-gray-200 rounded-lg bg-white">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center">
+                        <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mr-3">
+                          {getFileIcon(file.type)}
+                        </div>
+                        <div>
+                          <h4 className="font-medium text-gray-900 text-sm">{file.name}</h4>
+                          <p className="text-xs text-gray-500">{file.size} • {file.createdDate}</p>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center justify-center space-x-3 pt-3 border-t border-gray-100">
+                      <button
+                        onClick={() => handleDownloadFile(file)}
+                        className="flex-1 px-3 py-2 bg-blue-500 text-white rounded text-sm font-medium hover:bg-blue-600 transition-colors"
+                      >
+                        <DownloadOutlined className="mr-2" />
+                        Tải về
+                      </button>
+                      <button
+                        onClick={() => handleDeleteFile(file)}
+                        className="flex-1 px-3 py-2 border border-red-200 text-red-600 rounded text-sm font-medium hover:bg-red-50 transition-colors"
+                      >
+                        <DeleteOutlined className="mr-2" />
+                        Xóa
+                      </button>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  <FileExcelOutlined className="text-4xl mb-2 text-gray-300 mx-auto block" />
+                  <p>Không có file nào trong folder này</p>
+                </div>
+              )}
+            </div>
           </div>
         )}
 
@@ -562,14 +671,20 @@ const ReportsPage = () => {
             {selectedContextItem.type === 'recent-file' && (
               <>
                 <button
-                  onClick={() => handleDownloadFile(selectedContextItem)}
+                  onClick={() => {
+                    handleDownloadReport(selectedContextItem)
+                    closeContextMenu()
+                  }}
                   className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2"
                 >
                   <DownloadOutlined className="text-sm" />
                   <span>Tải về</span>
                 </button>
                 <button
-                  onClick={() => handleDeleteFile(selectedContextItem)}
+                  onClick={() => {
+                    handleDeleteReport(selectedContextItem)
+                    closeContextMenu()
+                  }}
                   className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center space-x-2"
                 >
                   <DeleteOutlined className="text-sm" />
@@ -577,7 +692,7 @@ const ReportsPage = () => {
                 </button>
                 <button
                   onClick={() => {
-                    console.log('Xem thông tin chi tiết:', selectedContextItem.name)
+                    alert(`Thông tin báo cáo:\n\nTên file: ${selectedContextItem.duong_dan_file.split('/').pop()}\nLoại: ${selectedContextItem.ten_nhom ? 'Báo cáo nhóm' : 'Báo cáo người dùng'}\nNhóm: ${selectedContextItem.ten_nhom || 'Không có'}\nNgày báo cáo: ${new Date(selectedContextItem.ngay_bao_cao).toLocaleDateString('vi-VN')}\nNgày tạo: ${new Date(selectedContextItem.ngay_tao_bao_cao).toLocaleString('vi-VN')}`)
                     closeContextMenu()
                   }}
                   className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2"

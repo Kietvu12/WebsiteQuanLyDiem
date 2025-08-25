@@ -15,12 +15,18 @@ import {
   EyeOutlined,
   CloseOutlined,
   LoadingOutlined,
-  ExclamationCircleOutlined
+  ExclamationCircleOutlined,
+  CalendarOutlined
 } from '@ant-design/icons'
 import { useAuth } from '../../contexts/AuthContext'
+import { useGlobalState } from '../../contexts/GlobalStateContext'
+import { transactionService } from '../../services/transactionService'
+import { vehicleScheduleService } from '../../services/vehicleScheduleService'
+import { reportService } from '../../services/reportService'
 
 const UsersPage = () => {
   const { user: currentUser, isAuthenticated } = useAuth()
+  const { users, updateUsers, addUser, updateUser, removeUser } = useGlobalState()
   const [searchUser, setSearchUser] = useState('')
   const [selectedUser, setSelectedUser] = useState(null)
   const [showUserModal, setShowUserModal] = useState(false)
@@ -37,7 +43,6 @@ const UsersPage = () => {
   const [scheduleStatus, setScheduleStatus] = useState('all')
 
   // State cho API
-  const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [userTransactions, setUserTransactions] = useState({})
@@ -46,6 +51,8 @@ const UsersPage = () => {
   // State cho modal
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
+  const [showExportReportModal, setShowExportReportModal] = useState(false)
+  const [exportingUser, setExportingUser] = useState(null)
   const [editingUser, setEditingUser] = useState(null)
   const [newUserData, setNewUserData] = useState({
     ten_dang_nhap: '',
@@ -74,7 +81,7 @@ const UsersPage = () => {
       const data = await response.json()
       
       if (response.ok && data.success) {
-        setUsers(data.data || [])
+        updateUsers(data.data || [])
       } else {
         setError(data.message || 'Không thể lấy danh sách người dùng')
       }
@@ -291,6 +298,15 @@ const UsersPage = () => {
         setShowCreateModal(false)
         setNewUserData({ ten_dang_nhap: '', mat_khau: '', email: '', ho_ten: '', so_dien_thoai: '', dia_chi: '' })
         fetchUsers()
+        
+        // Tạo thư mục báo cáo cho người dùng mới
+        try {
+          const token = localStorage.getItem('authToken')
+          await reportService.createUserReportDirectory(token, data.data.id_nguoi_dung, data.data.ho_ten)
+        } catch (error) {
+          console.warn('Không thể tạo thư mục báo cáo:', error.message)
+        }
+        
         setError(null)
       } else {
         setError(data.message || 'Không thể tạo người dùng')
@@ -374,7 +390,7 @@ const UsersPage = () => {
       const data = await response.json()
       
       if (response.ok && data.success) {
-        fetchUsers()
+        removeUser(userId)
         setError(null)
       } else {
         setError(data.message || 'Không thể xóa người dùng')
@@ -387,9 +403,35 @@ const UsersPage = () => {
     }
   }
 
-  const handleExportReport = (userId) => {
-    console.log('Xuất báo cáo người dùng:', userId)
-    // Xử lý logic xuất báo cáo
+  const handleExportReport = (user) => {
+    setExportingUser(user)
+    setShowExportReportModal(true)
+  }
+
+  const handleExportUserReport = async (reportType, startDate, endDate) => {
+    if (!exportingUser) return
+    
+    setLoading(true)
+    try {
+      const token = localStorage.getItem('authToken')
+      let response
+      
+      if (reportType === 'transactions') {
+        response = await reportService.exportUserTransactionsReport(token, exportingUser.id_nguoi_dung, startDate, endDate)
+      } else if (reportType === 'schedules') {
+        response = await reportService.exportUserSchedulesReport(token, exportingUser.id_nguoi_dung, startDate, endDate)
+      }
+      
+      if (response.success) {
+        alert(`Xuất báo cáo thành công!\nFile: ${response.data.fileName}\nSố bản ghi: ${response.data.recordCount}`)
+        setShowExportReportModal(false)
+        setExportingUser(null)
+      }
+    } catch (error) {
+      alert(`Lỗi khi xuất báo cáo: ${error.message}`)
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleUserClick = async (user) => {
@@ -552,134 +594,200 @@ const UsersPage = () => {
               <p className="text-gray-500">Đang tải dữ liệu...</p>
             </div>
           ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    <button 
-                      onClick={() => handleSort('ho_ten')}
-                      className="flex items-center hover:text-gray-700 transition-colors"
-                    >
-                      Tên người dùng
-                      {getSortIcon('ho_ten')}
-                    </button>
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    <button 
-                      onClick={() => handleSort('ten_dang_nhap')}
-                      className="flex items-center hover:text-gray-700 transition-colors"
-                    >
-                      Tài khoản
-                      {getSortIcon('ten_dang_nhap')}
-                    </button>
-                  </th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Mật khẩu
-                  </th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    <button 
-                      onClick={() => handleSort('so_du')}
-                      className="flex items-center justify-center hover:text-gray-700 transition-colors"
-                    >
-                      Số dư tiền
-                      {getSortIcon('so_du')}
-                    </button>
-                  </th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    <button 
-                      onClick={() => handleSort('diem')}
-                      className="flex items-center justify-center hover:text-gray-700 transition-colors"
-                    >
-                      Điểm
-                      {getSortIcon('diem')}
-                    </button>
-                  </th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Thao tác</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+            <>
+              {/* Desktop Table */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <button 
+                          onClick={() => handleSort('ho_ten')}
+                          className="flex items-center hover:text-gray-700 transition-colors"
+                        >
+                          Tên người dùng
+                          {getSortIcon('ho_ten')}
+                        </button>
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <button 
+                          onClick={() => handleSort('ten_dang_nhap')}
+                          className="flex items-center hover:text-gray-700 transition-colors"
+                        >
+                          Tài khoản
+                          {getSortIcon('ten_dang_nhap')}
+                        </button>
+                      </th>
+                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Mật khẩu
+                      </th>
+                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <button 
+                          onClick={() => handleSort('so_du')}
+                          className="flex items-center justify-center hover:text-gray-700 transition-colors"
+                        >
+                          Số dư tiền
+                          {getSortIcon('so_du')}
+                        </button>
+                      </th>
+                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <button 
+                          onClick={() => handleSort('diem')}
+                          className="flex items-center justify-center hover:text-gray-700 transition-colors"
+                        >
+                          Điểm
+                          {getSortIcon('diem')}
+                        </button>
+                      </th>
+                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Thao tác</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {getFilteredAndSortedUsers().length === 0 ? (
+                      <tr>
+                        <td colSpan="6" className="px-6 py-12 text-center text-gray-500">
+                          {searchUser ? 'Không tìm thấy người dùng nào phù hợp' : 'Chưa có người dùng nào'}
+                        </td>
+                      </tr>
+                    ) : (
+                      getFilteredAndSortedUsers().map(user => (
+                        <tr 
+                          key={user.id_nguoi_dung}
+                        className="hover:bg-gray-50 cursor-pointer transition-colors"
+                        onClick={() => handleUserClick(user)}
+                      >
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center">
+                            <div className="w-8 h-8 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center mr-3">
+                              <UserOutlined className="text-white text-xs" />
+                            </div>
+                              <div className="text-sm font-medium text-gray-900">{user.ho_ten}</div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm text-gray-900">{user.ten_dang_nhap}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-center">
+                            <div className="text-sm text-gray-500">••••••••</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-center">
+                          <div className="flex items-center justify-center">
+                            <DollarOutlined className="text-green-500 mr-2" />
+                            <span className="text-sm font-medium text-gray-900">
+                                {parseFloat(user.so_du || 0).toLocaleString('vi-VN')} VNĐ
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-center">
+                          <div className="flex items-center justify-center">
+                            <TeamOutlined className="text-purple-500 mr-2" />
+                              <span className="text-sm font-medium text-gray-900">{parseFloat(user.diem || 0).toFixed(2)}</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-center">
+                          <div className="flex items-center justify-center space-x-2">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleExportReport(user)
+                              }}
+                              className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                              title="Xuất báo cáo"
+                            >
+                              <FileTextOutlined className="text-sm" />
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                  handleEditUser(user.id_nguoi_dung)
+                              }}
+                                className="p-2 text-green-600 hover:bg-red-50 rounded-lg transition-colors"
+                              title="Sửa thông tin"
+                            >
+                              <EditOutlined className="text-sm" />
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                  handleDeleteUser(user.id_nguoi_dung)
+                              }}
+                              className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                              title="Xóa người dùng"
+                            >
+                              <DeleteOutlined className="text-sm" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile Cards */}
+              <div className="md:hidden p-4 space-y-4">
                 {getFilteredAndSortedUsers().length === 0 ? (
-                  <tr>
-                    <td colSpan="6" className="px-6 py-12 text-center text-gray-500">
-                      {searchUser ? 'Không tìm thấy người dùng nào phù hợp' : 'Chưa có người dùng nào'}
-                    </td>
-                  </tr>
+                  <div className="text-center py-8 text-gray-500">
+                    <UserOutlined className="text-4xl mb-2 text-gray-300 mx-auto block" />
+                    <p>{searchUser ? 'Không tìm thấy người dùng nào phù hợp' : 'Chưa có người dùng nào'}</p>
+                  </div>
                 ) : (
                   getFilteredAndSortedUsers().map(user => (
-                    <tr 
+                    <div
                       key={user.id_nguoi_dung}
-                    className="hover:bg-gray-50 cursor-pointer transition-colors"
-                    onClick={() => handleUserClick(user)}
-                  >
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <div className="w-8 h-8 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center mr-3">
-                          <UserOutlined className="text-white text-xs" />
+                      className="p-4 border border-gray-200 rounded-lg cursor-pointer transition-colors hover:bg-gray-50"
+                      onClick={() => handleUserClick(user)}
+                    >
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex items-center">
+                          <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center mr-3">
+                            <UserOutlined className="text-white text-sm" />
+                          </div>
+                          <div>
+                            <h4 className="font-medium text-gray-900 text-base">{user.ho_ten}</h4>
+                            <p className="text-sm text-gray-500">{user.ten_dang_nhap}</p>
+                          </div>
                         </div>
-                          <div className="text-sm font-medium text-gray-900">{user.ho_ten}</div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{user.ten_dang_nhap}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-center">
-                        <div className="text-sm text-gray-500">••••••••</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-center">
-                      <div className="flex items-center justify-center">
-                        <DollarOutlined className="text-green-500 mr-2" />
-                        <span className="text-sm font-medium text-gray-900">
-                            {parseFloat(user.so_du || 0).toLocaleString('vi-VN')} VNĐ
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-center">
-                      <div className="flex items-center justify-center">
-                        <TeamOutlined className="text-purple-500 mr-2" />
-                          <span className="text-sm font-medium text-gray-900">{parseFloat(user.diem || 0).toFixed(2)}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-center">
-                      <div className="flex items-center justify-center space-x-2">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                              handleExportReport(user.id_nguoi_dung)
-                          }}
-                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                          title="Xuất báo cáo"
-                        >
-                          <FileTextOutlined className="text-sm" />
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
+                        <div className="flex items-center space-x-2">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
                               handleEditUser(user.id_nguoi_dung)
-                          }}
-                            className="p-2 text-green-600 hover:bg-red-50 rounded-lg transition-colors"
-                          title="Sửa thông tin"
-                        >
-                          <EditOutlined className="text-sm" />
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
+                            }}
+                            className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                            title="Sửa thông tin"
+                          >
+                            <EditOutlined className="text-sm" />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
                               handleDeleteUser(user.id_nguoi_dung)
-                          }}
-                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                          title="Xóa người dùng"
-                        >
-                          <DeleteOutlined className="text-sm" />
-                        </button>
+                            }}
+                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Xóa người dùng"
+                          >
+                            <DeleteOutlined className="text-sm" />
+                          </button>
+                        </div>
                       </div>
-                    </td>
-                  </tr>
+                      
+                      <div className="grid grid-cols-2 gap-3 text-sm">
+                        <div className="flex items-center justify-center p-2 bg-green-50 rounded-lg">
+                          <DollarOutlined className="text-green-500 mr-2" />
+                          <span className="font-medium">{parseFloat(user.so_du || 0).toLocaleString('vi-VN')} VNĐ</span>
+                        </div>
+                        <div className="flex items-center justify-center p-2 bg-purple-50 rounded-lg">
+                          <TeamOutlined className="text-purple-500 mr-2" />
+                          <span className="font-medium">{parseFloat(user.diem || 0).toFixed(2)} điểm</span>
+                        </div>
+                      </div>
+                    </div>
                   ))
                 )}
-              </tbody>
-            </table>
-          </div>
+              </div>
+            </>
           )}
         </div>
 
@@ -1053,6 +1161,83 @@ const UsersPage = () => {
                     </div>
                   </div>
                 )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Export Report Modal */}
+        {showExportReportModal && exportingUser && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-2xl p-6 w-full max-w-lg">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">
+                Xuất báo cáo người dùng: {exportingUser.ho_ten}
+              </h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Loại báo cáo</label>
+                  <select
+                    id="reportType"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    defaultValue="transactions"
+                  >
+                    <option value="transactions">Báo cáo giao dịch</option>
+                    <option value="schedules">Báo cáo lịch xe</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Từ ngày</label>
+                  <input
+                    type="date"
+                    id="startDate"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    defaultValue={new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Đến ngày</label>
+                  <input
+                    type="date"
+                    id="endDate"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    defaultValue={new Date().toISOString().split('T')[0]}
+                  />
+                </div>
+                <div className="text-sm text-gray-600 bg-blue-50 p-3 rounded-lg">
+                  <p>Báo cáo sẽ bao gồm:</p>
+                  <ul className="list-disc list-inside mt-2 space-y-1">
+                    <li>Thông tin chi tiết theo loại báo cáo đã chọn</li>
+                    <li>Thống kê theo khoảng thời gian</li>
+                    <li>Dữ liệu được sắp xếp theo thời gian</li>
+                  </ul>
+                </div>
+              </div>
+              <div className="flex space-x-3 mt-6">
+                <button
+                  onClick={() => {
+                    setShowExportReportModal(false)
+                    setExportingUser(null)
+                  }}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Hủy
+                </button>
+                <button
+                  onClick={() => {
+                    const reportType = document.getElementById('reportType').value
+                    const startDate = document.getElementById('startDate').value
+                    const endDate = document.getElementById('endDate').value
+                    if (startDate && endDate) {
+                      handleExportUserReport(reportType, startDate, endDate)
+                    } else {
+                      alert('Vui lòng chọn khoảng thời gian')
+                    }
+                  }}
+                  disabled={loading}
+                  className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50"
+                >
+                  {loading ? 'Đang xuất...' : 'Xuất báo cáo'}
+                </button>
               </div>
             </div>
           </div>

@@ -1,6 +1,7 @@
 import React from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
+import { useGlobalState } from '../../contexts/GlobalStateContext'
 import { 
   DashboardOutlined,
   FileTextOutlined,
@@ -17,12 +18,17 @@ import {
 const Sidebar = ({ isOpen, onClose }) => {
   const location = useLocation()
   const { user } = useAuth()
-  console.log('Sidebar user:', user);
+  const { users } = useGlobalState()
+  
+  // Tìm user hiện tại trong global state để có thông tin mới nhất
+  const currentUser = users.find(u => u.id_nguoi_dung === user?.id_nguoi_dung) || user
+  
+  console.log('Sidebar user:', currentUser);
   
   // Menu items dựa trên vai trò
   const getMenuItems = () => {
     // Sửa logic so sánh: la_admin có thể là 1 hoặc true
-    const isAdmin = user?.la_admin === 1 || user?.la_admin === true
+    const isAdmin = currentUser?.la_admin === 1 || currentUser?.la_admin === true
     
     const baseMenuItems = [
       {
@@ -112,18 +118,18 @@ const Sidebar = ({ isOpen, onClose }) => {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-gray-800 truncate">
-                {user?.ho_ten || user?.ten_dang_nhap || 'User'}
+                {currentUser?.ho_ten || currentUser?.ten_dang_nhap || 'User'}
               </p>
               <p className="text-xs text-gray-500 truncate">
-                {user?.email || 'user@example.com'}
+                {currentUser?.email || 'user@example.com'}
               </p>
               <div className="flex items-center mt-1">
                 <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                  (user?.la_admin === 1 || user?.la_admin === true)
+                  (currentUser?.la_admin === 1 || currentUser?.la_admin === true)
                     ? 'bg-purple-100 text-purple-800' 
                     : 'bg-blue-100 text-blue-800'
                 }`}>
-                  {(user?.la_admin === 1 || user?.la_admin === true) ? 'Admin' : 'Member'}
+                  {(currentUser?.la_admin === 1 || currentUser?.la_admin === true) ? 'Admin' : 'Member'}
                 </span>
               </div>
             </div>
@@ -139,7 +145,7 @@ const Sidebar = ({ isOpen, onClose }) => {
                 <span className="text-xs text-gray-600">Số dư</span>
               </div>
               <span className="text-sm font-semibold text-green-700">
-                {user?.so_du ? `${parseFloat(user.so_du).toLocaleString('vi-VN')} VNĐ` : '0 VNĐ'}
+                {currentUser?.so_du ? `${parseFloat(currentUser.so_du).toLocaleString('vi-VN')} VNĐ` : '0 VNĐ'}
               </span>
             </div>
             
@@ -151,7 +157,7 @@ const Sidebar = ({ isOpen, onClose }) => {
                 <span className="text-xs text-gray-600">Điểm</span>
               </div>
               <span className="text-sm font-semibold text-blue-700">
-                {user?.diem ? `${parseFloat(user.diem).toLocaleString('vi-VN')}` : '0'} điểm
+                {currentUser?.diem ? `${parseFloat(currentUser.diem).toLocaleString('vi-VN')}` : '0'} điểm
               </span>
             </div>
           </div>

@@ -9,6 +9,7 @@ const groupRoutes = require('./routes/groupRoutes');
 const transactionRoutes = require('./routes/transactionRoutes');
 const vehicleScheduleRoutes = require('./routes/vehicleScheduleRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
+const reportRoutes = require('./routes/reportRoutes');
 
 const app = express();
 app.use(cors());
@@ -23,6 +24,7 @@ app.use('/api/groups', groupRoutes);
 app.use('/api/transactions', transactionRoutes);
 app.use('/api/schedules', vehicleScheduleRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/reports', reportRoutes);
 
 // Test authentication endpoint
 app.get('/api/test-auth', (req, res) => {
@@ -91,4 +93,5 @@ app.listen(PORT, () => {
   console.log(`👥 API Groups: http://localhost:${PORT}/api/groups`);
   console.log(`💰 API Transactions: http://localhost:${PORT}/api/transactions`);
   console.log(`🚗 API Schedules: http://localhost:${PORT}/api/schedules`);
+  console.log(`📊 API Reports: http://localhost:${PORT}/api/reports`);
 });
