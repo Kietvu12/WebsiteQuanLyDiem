@@ -2,7 +2,7 @@ const mysql = require('mysql2/promise');
 
 const dbConfig = {
   host: 'localhost',
-  user: 'root',
+  user: 'mcp',
   password: '',
   database: 'quanlydiem',
   waitForConnections: true,

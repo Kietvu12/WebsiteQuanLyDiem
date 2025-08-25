@@ -54,6 +54,8 @@ const AddNewTransaction = () => {
     errorMessage: ''
   })
 
+
+
   // Data từ API
   const [groups, setGroups] = useState([])
   const [groupMembers, setGroupMembers] = useState([])
@@ -496,6 +498,91 @@ const AddNewTransaction = () => {
     calculatePointsForSchedule()
   }
 
+  // Parse amount from message text
+  const parseAmountFromMessage = (message) => {
+    if (!message) return null
+    
+    // Các pattern để tìm số tiền
+    const patterns = [
+      // Pattern 1: "200k", "200K", "200.5k", "200,5k"
+      /(\d+(?:[.,]\d+)?)[kK]/g,
+      // Pattern 2: "200đ", "200.5đ", "200,5đ"
+      /(\d+(?:[.,]\d+)?)đ/g,
+      // Pattern 3: "200 nghìn", "200.5 nghìn", "200,5 nghìn"
+      /(\d+(?:[.,]\d+)?)\s*nghìn/g,
+      // Pattern 4: "200 triệu", "200.5 triệu", "200,5 triệu"
+      /(\d+(?:[.,]\d+)?)\s*triệu/g,
+      // Pattern 5: "200000" (số nguyên)
+      /(\d{4,})/g
+    ]
+    
+    let maxAmount = 0
+    
+    patterns.forEach(pattern => {
+      const matches = message.match(pattern)
+      if (matches) {
+        matches.forEach(match => {
+          let amount = 0
+          
+          if (pattern.source.includes('[kK]')) {
+            // Xử lý "k" (nghìn)
+            const number = parseFloat(match.replace(/[kK]/g, '').replace(',', '.'))
+            amount = number * 1000
+          } else if (pattern.source.includes('đ')) {
+            // Xử lý "đ" (đồng)
+            const number = parseFloat(match.replace('đ', '').replace(',', '.'))
+            amount = number
+          } else if (pattern.source.includes('nghìn')) {
+            // Xử lý "nghìn"
+            const number = parseFloat(match.replace(/\s*nghìn/g, '').replace(',', '.'))
+            amount = number * 1000
+          } else if (pattern.source.includes('triệu')) {
+            // Xử lý "triệu"
+            const number = parseFloat(match.replace(/\s*triệu/g, '').replace(',', '.'))
+            amount = number * 1000000
+          } else if (pattern.source.includes('\\d{4,}')) {
+            // Xử lý số nguyên >= 4 chữ số
+            amount = parseInt(match)
+          }
+          
+          if (amount > maxAmount) {
+            maxAmount = amount
+          }
+        })
+      }
+    })
+    
+    return maxAmount > 0 ? maxAmount : null
+  }
+
+  // Handle amount input change
+  const handleAmountChange = (value) => {
+    handleInputChange('so_tien', value)
+    
+    // Tự động phân tích tin nhắn nếu có
+    if (formData.noi_dung && value === '') {
+      const parsedAmount = parseAmountFromMessage(formData.noi_dung)
+      if (parsedAmount) {
+        handleInputChange('so_tien', parsedAmount.toString())
+      }
+    }
+  }
+
+  // Handle message input change with auto-parse
+  const handleMessageChange = (value) => {
+    handleInputChange('noi_dung', value)
+    
+    // Tự động phân tích số tiền từ tin nhắn
+    if (value && !formData.so_tien) {
+      const parsedAmount = parseAmountFromMessage(value)
+      if (parsedAmount) {
+        handleInputChange('so_tien', parsedAmount.toString())
+      }
+    }
+  }
+
+
+
   return (
     <>
       {/* Floating Button */}
@@ -677,11 +764,6 @@ const AddNewTransaction = () => {
                   </h3>
                   
                   {/* Debug info */}
-                  <div className="mb-4 p-2 bg-blue-100 rounded text-xs text-blue-800">
-                    Debug: Transaction Type = {formData.id_loai_giao_dich} (Type: {typeof formData.id_loai_giao_dich})
-                    <br />
-                    Should show: {formData.id_loai_giao_dich === 1 ? 'YES' : 'NO'}
-                  </div>
                   
                   <div className="grid grid-cols-2 gap-4">
                     {/* Loại xe */}
@@ -796,15 +878,21 @@ const AddNewTransaction = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   <FileTextOutlined className="mr-2 text-gray-400" />
                   Nội dung giao dịch
+                  <span className="ml-2 text-xs text-blue-600 font-medium">
+                    💡 Tự động phân tích số tiền từ tin nhắn
+                  </span>
                 </label>
                 <textarea
                   value={formData.noi_dung}
-                  onChange={(e) => handleInputChange('noi_dung', e.target.value)}
-                  placeholder="Nhập nội dung giao dịch"
+                  onChange={(e) => handleMessageChange(e.target.value)}
+                  placeholder="Ví dụ: Bảo Khánh ck 200k, Disanbay200k0.5đ"
                   rows={3}
                   className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-gray-50 resize-none"
                   required
                 />
+                <p className="text-xs text-gray-500 mt-1">
+                  Hỗ trợ: 200k, 200K, 200.5k, 200đ, 200 nghìn, 200 triệu, 200000
+                </p>
               </div>
 
               {/* Amount and Points */}
@@ -817,7 +905,7 @@ const AddNewTransaction = () => {
                   <input
                     type="number"
                     value={formData.so_tien}
-                    onChange={(e) => handleInputChange('so_tien', e.target.value)}
+                    onChange={(e) => handleAmountChange(e.target.value)}
                     placeholder="Nhập số tiền (có thể âm)"
                     className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-gray-50"
                     step="1000"

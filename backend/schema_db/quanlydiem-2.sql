@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: localhost
--- Generation Time: Aug 24, 2025 at 07:16 PM
+-- Generation Time: Aug 25, 2025 at 02:03 AM
 -- Server version: 10.4.28-MariaDB
 -- PHP Version: 8.2.4
 
@@ -56,48 +56,6 @@ CREATE TABLE `giao_dich` (
   `ngay_hoan_thanh` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
---
--- Dumping data for table `giao_dich`
---
-
-INSERT INTO `giao_dich` (`id_giao_dich`, `id_loai_giao_dich`, `id_nguoi_gui`, `id_nguoi_nhan`, `id_nhom`, `id_lich_xe`, `so_tien`, `diem`, `noi_dung`, `trang_thai`, `ngay_tao`, `ngay_hoan_thanh`) VALUES
-(161, 1, 1, 3, 1, 75, 400000.00, 1.0000, 'AAA', 'hoan_thanh', '2025-08-24 13:53:25', '2025-08-24 13:53:56'),
-(162, 2, 3, 1, 1, 75, -400000.00, -1.0000, 'Nhận lịch: AAA', 'hoan_thanh', '2025-08-24 13:53:25', '2025-08-24 13:53:56'),
-(163, 3, 1, NULL, 1, 75, -400000.00, -1.0000, 'Hủy lịch xe - Trừ tiền/điểm của người gửi', 'hoan_thanh', '2025-08-24 13:54:55', '2025-08-24 13:54:55'),
-(164, 3, NULL, 1, 1, 75, 400000.00, 1.0000, 'Hủy lịch xe - Cộng tiền/điểm cho người nhận', 'hoan_thanh', '2025-08-24 13:54:55', '2025-08-24 13:54:55'),
-(165, 1, 1, 3, 1, 76, 1000000.00, 1.0000, '1221', 'hoan_thanh', '2025-08-24 14:08:01', '2025-08-24 14:08:42'),
-(166, 2, 3, 1, 1, 76, -1000000.00, -1.0000, 'Nhận lịch: 1221', 'hoan_thanh', '2025-08-24 14:08:01', '2025-08-24 14:08:42'),
-(167, 3, 1, NULL, 1, 76, -1000000.00, -1.0000, 'Hủy lịch xe - Trừ tiền/điểm của người gửi', 'hoan_thanh', '2025-08-24 14:09:08', '2025-08-24 14:09:08'),
-(168, 3, NULL, 1, 1, 76, 1000000.00, 1.0000, 'Hủy lịch xe - Cộng tiền/điểm cho người nhận', 'hoan_thanh', '2025-08-24 14:09:08', '2025-08-24 14:09:08'),
-(169, 1, 1, 3, 1, 77, 1000000.00, 1.0000, 'AAAA', 'hoan_thanh', '2025-08-24 14:17:27', '2025-08-24 14:17:57'),
-(170, 2, 3, 1, 1, 77, -1000000.00, -1.0000, 'Nhận lịch: AAAA', 'hoan_thanh', '2025-08-24 14:17:27', '2025-08-24 14:17:57'),
-(171, 3, 1, NULL, 1, 77, -1000000.00, -1.0000, 'Hủy lịch xe - Trừ tiền/điểm của người gửi', 'hoan_thanh', '2025-08-24 14:18:23', '2025-08-24 14:18:23'),
-(172, 3, NULL, 1, 1, 77, 1000000.00, 1.0000, 'Hủy lịch xe - Cộng tiền/điểm cho người nhận', 'hoan_thanh', '2025-08-24 14:18:23', '2025-08-24 14:18:23'),
-(173, 1, 1, 3, 1, 78, 321000.00, 0.5000, 'aa1', 'hoan_thanh', '2025-08-24 14:22:57', '2025-08-24 14:23:15'),
-(174, 2, 3, 1, 1, 78, -321000.00, -0.5000, 'Nhận lịch: aa1', 'hoan_thanh', '2025-08-24 14:22:57', '2025-08-24 14:23:15'),
-(175, 3, 1, NULL, 1, 78, -321000.00, -0.5000, 'Hủy lịch xe - Trừ tiền/điểm của người gửi', 'hoan_thanh', '2025-08-24 14:23:32', '2025-08-24 14:23:32'),
-(176, 3, NULL, 1, 1, 78, 321000.00, 0.5000, 'Hủy lịch xe - Cộng tiền/điểm cho người nhận', 'hoan_thanh', '2025-08-24 14:23:32', '2025-08-24 14:23:32'),
-(177, 1, 1, 3, 1, 79, 3000000.00, 1.5000, '22222', 'hoan_thanh', '2025-08-24 14:26:56', '2025-08-24 14:27:08'),
-(178, 2, 3, 1, 1, 79, -3000000.00, -1.5000, 'Nhận lịch: 22222', 'hoan_thanh', '2025-08-24 14:26:56', '2025-08-24 14:27:08'),
-(179, 3, 1, NULL, 1, 79, -3000000.00, -1.5000, 'Hủy lịch xe - Trừ tiền/điểm của người gửi', 'hoan_thanh', '2025-08-24 14:27:27', '2025-08-24 14:27:27'),
-(180, 3, NULL, 1, 1, 79, 3000000.00, 1.5000, 'Hủy lịch xe - Cộng tiền/điểm cho người nhận', 'hoan_thanh', '2025-08-24 14:27:27', '2025-08-24 14:27:27'),
-(181, 1, 1, 3, 1, 80, 1000000.00, -0.2000, 'Â', 'hoan_thanh', '2025-08-24 14:52:17', '2025-08-24 14:52:42'),
-(182, 2, 3, 1, 1, 80, -1000000.00, 0.2000, 'Nhận lịch: Â', 'hoan_thanh', '2025-08-24 14:52:17', '2025-08-24 14:52:42'),
-(183, 3, 1, NULL, 1, 80, -1000000.00, -0.2000, 'Hủy lịch xe - Trừ tiền/điểm của người gửi', 'hoan_thanh', '2025-08-24 14:53:21', '2025-08-24 14:53:21'),
-(184, 3, NULL, 1, 1, 80, 1000000.00, 0.2000, 'Hủy lịch xe - Cộng tiền/điểm cho người nhận', 'hoan_thanh', '2025-08-24 14:53:21', '2025-08-24 14:53:21'),
-(185, 1, 1, 3, 1, 81, 1000000.00, 1.0000, 'AAAA', 'hoan_thanh', '2025-08-24 15:01:37', '2025-08-24 15:02:07'),
-(186, 2, 3, 1, 1, 81, -1000000.00, -1.0000, 'Nhận lịch: AAAA', 'hoan_thanh', '2025-08-24 15:01:37', '2025-08-24 15:02:07'),
-(187, 3, 1, NULL, 1, 81, -1000000.00, -1.0000, 'Hủy lịch xe - Trừ tiền/điểm của người gửi', 'hoan_thanh', '2025-08-24 15:02:14', '2025-08-24 15:02:14'),
-(188, 3, NULL, 1, 1, 81, 1000000.00, 1.0000, 'Hủy lịch xe - Cộng tiền/điểm cho người nhận', 'hoan_thanh', '2025-08-24 15:02:14', '2025-08-24 15:02:14'),
-(189, 1, 1, 3, 1, 82, 1000000.00, 2.0000, 'adsdada', 'hoan_thanh', '2025-08-24 15:25:49', '2025-08-24 15:26:02'),
-(190, 2, 3, 1, 1, 82, -1000000.00, -2.0000, 'Nhận lịch: adsdada', 'hoan_thanh', '2025-08-24 15:25:49', '2025-08-24 15:26:02'),
-(191, 3, 1, NULL, 1, 82, -1000000.00, -2.0000, 'Hủy lịch xe - Trừ tiền/điểm của người gửi', 'hoan_thanh', '2025-08-24 15:26:09', '2025-08-24 15:26:09'),
-(192, 3, NULL, 3, 1, 82, 1000000.00, 2.0000, 'Hủy lịch xe - Cộng tiền/điểm cho người nhận', 'hoan_thanh', '2025-08-24 15:26:09', '2025-08-24 15:26:09'),
-(193, 1, 1, 3, 1, 83, 1000000.00, 1.0000, 'AAA', 'hoan_thanh', '2025-08-24 15:49:05', '2025-08-24 15:49:23'),
-(194, 2, 3, 1, 1, 83, -1000000.00, -1.0000, 'Nhận lịch: AAA', 'hoan_thanh', '2025-08-24 15:49:05', '2025-08-24 15:49:23'),
-(195, 3, 3, NULL, 1, 83, -1000000.00, -1.0000, 'Hủy lịch xe - Trừ tiền/điểm của người hủy lịch', 'hoan_thanh', '2025-08-24 15:49:46', '2025-08-24 15:49:46'),
-(196, 3, NULL, 1, 1, 83, 1000000.00, 1.0000, 'Hủy lịch xe - Cộng tiền/điểm cho người gửi lịch', 'hoan_thanh', '2025-08-24 15:49:46', '2025-08-24 15:49:46');
-
 -- --------------------------------------------------------
 
 --
@@ -118,21 +76,6 @@ CREATE TABLE `lich_xe` (
   `trang_thai` enum('cho_xac_nhan','da_xac_nhan','hoan_thanh','da_huy') DEFAULT 'cho_xac_nhan',
   `id_nguoi_nhan` int(11) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
---
--- Dumping data for table `lich_xe`
---
-
-INSERT INTO `lich_xe` (`id_lich_xe`, `id_loai_xe`, `id_loai_tuyen`, `thoi_gian_bat_dau_don`, `thoi_gian_ket_thuc_don`, `thoi_gian_bat_dau_tra`, `thoi_gian_ket_thuc_tra`, `id_nguoi_tao`, `id_nhom`, `ngay_tao`, `trang_thai`, `id_nguoi_nhan`) VALUES
-(75, 3, 1, '2025-08-31 20:53:00', '2025-08-24 20:53:00', '2025-08-24 21:53:00', '2025-08-24 21:53:00', 1, 1, '2025-08-24 13:53:25', 'da_huy', 3),
-(76, 3, 1, '2025-08-24 21:07:00', '2025-08-24 21:07:00', '2025-08-24 22:07:00', '2025-08-24 22:07:00', 1, 1, '2025-08-24 14:08:01', 'da_huy', 3),
-(77, 3, 1, '2025-08-24 21:17:00', '2025-08-24 21:17:00', '2025-08-24 22:17:00', '2025-08-24 22:17:00', 1, 1, '2025-08-24 14:17:27', 'da_huy', 3),
-(78, 4, 4, '2025-08-24 21:22:00', '2025-08-24 21:22:00', '2025-08-24 22:22:00', '2025-08-24 22:22:00', 1, 1, '2025-08-24 14:22:57', 'da_huy', 3),
-(79, 3, 2, '2025-08-24 21:26:00', '2025-08-24 21:26:00', '2025-08-24 21:26:00', '2025-08-24 21:26:00', 1, 1, '2025-08-24 14:26:56', 'da_huy', 3),
-(80, 3, 2, '2025-08-24 21:51:00', '2025-08-24 21:51:00', '2025-08-24 22:51:00', '2025-08-24 22:51:00', 1, 1, '2025-08-24 14:52:17', 'da_huy', 3),
-(81, 3, 1, '2025-08-24 22:01:00', '2025-08-24 22:01:00', '2025-08-24 23:01:00', '2025-08-24 23:01:00', 1, 1, '2025-08-24 15:01:37', 'da_huy', 3),
-(82, 6, 5, '2025-08-24 22:25:00', '2025-08-24 22:25:00', '2025-08-24 23:25:00', '2025-08-24 23:25:00', 1, 1, '2025-08-24 15:25:49', 'da_huy', 3),
-(83, 2, 1, '2025-08-24 22:48:00', '2025-08-24 22:48:00', '2025-08-24 23:48:00', '2025-08-24 23:48:00', 1, 1, '2025-08-24 15:49:05', 'da_huy', 3);
 
 -- --------------------------------------------------------
 
@@ -233,9 +176,9 @@ CREATE TABLE `nguoi_dung` (
 
 INSERT INTO `nguoi_dung` (`id_nguoi_dung`, `ten_dang_nhap`, `mat_khau_hash`, `email`, `ho_ten`, `so_dien_thoai`, `dia_chi`, `so_du`, `diem`, `la_admin`, `ngay_tao`, `ngay_cap_nhat`) VALUES
 (1, 'admin', '$2a$12$Mte75pD0aoir0x7kYMGs0uG1YGvjIrtC7gR4uCLhhq.RKTCSpYE4S', 'admin@company.com', 'Trần Quản Trị', '0987654321', NULL, 1000000.00, 10.0000, 1, '2025-08-20 08:32:05', '2025-08-24 15:49:46'),
-(2, 'nguyenvanA', '$2a$12$dzWcobCrPlIA04tAEx.3m.WkjI3y56SoFL.L4CXgAYIJy6Y9/o7i.', 'nguyenvana@gmail.com', 'Nguyễn Văn A', '0912345678', NULL, 0.00, 0.0000, 0, '2025-08-20 08:32:05', '2025-08-21 11:28:54'),
+(2, 'nguyenvanA', '$2a$12$dzWcobCrPlIA04tAEx.3m.WkjI3y56SoFL.L4CXgAYIJy6Y9/o7i.', 'nguyenvana@gmail.com', 'Nguyễn Văn A', '0912345678', NULL, 1000000.00, 10.0000, 0, '2025-08-20 08:32:05', '2025-08-25 00:03:42'),
 (3, 'tranthiB', '$2a$12$dzWcobCrPlIA04tAEx.3m.WkjI3y56SoFL.L4CXgAYIJy6Y9/o7i.', 'tranthib@yahoo.com', 'Trần Thị B', '0923456789', NULL, 1000000.00, 10.0000, 0, '2025-08-20 08:32:05', '2025-08-24 15:49:46'),
-(4, 'phamvanC', '$2a$10$N9qo8uLOickgx2ZMRZoMy.MQD/.G6QAIH9J5q7YJ3Y1sJQYJXvB1O', 'phamvanc@gmail.com', 'Phạm Văn C', '0934567890', NULL, 0.00, 0.0000, 0, '2025-08-20 08:32:05', '2025-08-20 08:32:05');
+(4, 'phamvanC', '$2a$10$N9qo8uLOickgx2ZMRZoMy.MQD/.G6QAIH9J5q7YJ3Y1sJQYJXvB1O', 'phamvanc@gmail.com', 'Phạm Văn C', '0934567890', NULL, 1000000.00, 10.0000, 0, '2025-08-20 08:32:05', '2025-08-25 00:03:32');
 
 -- --------------------------------------------------------
 
@@ -297,75 +240,6 @@ CREATE TABLE `thong_bao` (
   `da_doc` tinyint(1) DEFAULT 0,
   `ngay_tao` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
---
--- Dumping data for table `thong_bao`
---
-
-INSERT INTO `thong_bao` (`id_thong_bao`, `id_nguoi_dung`, `id_giao_dich`, `noi_dung`, `da_doc`, `ngay_tao`) VALUES
-(124, 3, 161, 'Bạn có lịch xe mới từ admin - nhận 400.000 VNĐ và nhận 1 điểm (có lịch xe đi kèm)', 1, '2025-08-24 13:53:25'),
-(125, 1, 161, 'Bạn đã giao lịch xe cho người dùng - nhận 400.000 VNĐ và nhận 1 điểm (có lịch xe đi kèm)', 0, '2025-08-24 13:53:25'),
-(126, 1, 161, 'Lịch xe của bạn đã được xác nhận bởi tranthiB. Bạn đã nhận 400000.00 VNĐ và 1 điểm.', 0, '2025-08-24 13:53:56'),
-(127, 1, 164, 'Lịch xe đã bị hủy - Hoàn lại 400,000 VNĐ và 1 điểm', 0, '2025-08-24 13:54:55'),
-(128, 1, 163, 'Lịch xe đã bị hủy - Hoàn lại 400,000 VNĐ và 1 điểm', 0, '2025-08-24 13:54:55'),
-(129, 3, 164, 'Lịch xe từ tranthiB đã bị hủy', 0, '2025-08-24 13:54:55'),
-(130, 1, 163, 'Lịch xe của bạn đã được hủy bởi tranthiB', 0, '2025-08-24 13:54:55'),
-(131, 3, 165, 'Bạn có lịch xe mới từ admin - nhận 1.000.000 VNĐ và nhận 1 điểm (có lịch xe đi kèm)', 1, '2025-08-24 14:08:01'),
-(132, 1, 165, 'Bạn đã giao lịch xe cho người dùng - nhận 1.000.000 VNĐ và nhận 1 điểm (có lịch xe đi kèm)', 0, '2025-08-24 14:08:01'),
-(133, 1, 165, 'Lịch xe của bạn đã được xác nhận bởi tranthiB. Bạn đã nhận 1000000.00 VNĐ và 1 điểm.', 0, '2025-08-24 14:08:42'),
-(134, 1, 168, 'Lịch xe đã bị hủy - Hoàn lại 1,000,000 VNĐ và 1 điểm', 0, '2025-08-24 14:09:08'),
-(135, 1, 167, 'Lịch xe đã bị hủy - Hoàn lại 1,000,000 VNĐ và 1 điểm', 0, '2025-08-24 14:09:08'),
-(136, 3, 168, 'Lịch xe từ tranthiB đã bị hủy', 0, '2025-08-24 14:09:08'),
-(137, 1, 167, 'Lịch xe của bạn đã được hủy bởi tranthiB', 0, '2025-08-24 14:09:08'),
-(138, 3, 169, 'Bạn có lịch xe mới từ admin - nhận 1.000.000 VNĐ và nhận 1 điểm (có lịch xe đi kèm)', 1, '2025-08-24 14:17:27'),
-(139, 1, 169, 'Bạn đã giao lịch xe cho người dùng - nhận 1.000.000 VNĐ và nhận 1 điểm (có lịch xe đi kèm)', 0, '2025-08-24 14:17:27'),
-(140, 1, 169, 'Lịch xe của bạn đã được xác nhận bởi tranthiB. Bạn đã nhận 1000000.00 VNĐ và 1 điểm.', 0, '2025-08-24 14:17:57'),
-(141, 1, 172, 'Lịch xe đã bị hủy - Hoàn lại 1,000,000 VNĐ và 1 điểm', 0, '2025-08-24 14:18:23'),
-(142, 1, 171, 'Lịch xe đã bị hủy - Hoàn lại 1,000,000 VNĐ và 1 điểm', 0, '2025-08-24 14:18:23'),
-(143, 3, 172, 'Lịch xe từ tranthiB đã bị hủy', 0, '2025-08-24 14:18:23'),
-(144, 1, 171, 'Lịch xe của bạn đã được hủy bởi tranthiB', 0, '2025-08-24 14:18:23'),
-(145, 3, 173, 'Bạn có lịch xe mới từ admin - nhận 321.000 VNĐ và nhận 0.5 điểm (có lịch xe đi kèm)', 1, '2025-08-24 14:22:57'),
-(146, 1, 173, 'Bạn đã giao lịch xe cho người dùng - nhận 321.000 VNĐ và nhận 0.5 điểm (có lịch xe đi kèm)', 0, '2025-08-24 14:22:57'),
-(147, 1, 173, 'Lịch xe của bạn đã được xác nhận bởi tranthiB. Bạn đã nhận 321000.00 VNĐ và 0.5 điểm.', 0, '2025-08-24 14:23:15'),
-(148, 1, 176, 'Lịch xe đã bị hủy - Hoàn lại 321,000 VNĐ và 0.5 điểm', 0, '2025-08-24 14:23:33'),
-(149, 1, 175, 'Lịch xe đã bị hủy - Hoàn lại 321,000 VNĐ và 0.5 điểm', 0, '2025-08-24 14:23:33'),
-(150, 3, 176, 'Lịch xe từ tranthiB đã bị hủy', 0, '2025-08-24 14:23:33'),
-(151, 1, 175, 'Lịch xe của bạn đã được hủy bởi tranthiB', 0, '2025-08-24 14:23:33'),
-(152, 3, 177, 'Bạn có lịch xe mới từ admin - nhận 3.000.000 VNĐ và nhận 1.5 điểm (có lịch xe đi kèm)', 1, '2025-08-24 14:26:56'),
-(153, 1, 177, 'Bạn đã giao lịch xe cho người dùng - nhận 3.000.000 VNĐ và nhận 1.5 điểm (có lịch xe đi kèm)', 0, '2025-08-24 14:26:56'),
-(154, 1, 177, 'Lịch xe của bạn đã được xác nhận bởi tranthiB. Bạn đã nhận 3000000.00 VNĐ và 1.5 điểm.', 0, '2025-08-24 14:27:08'),
-(155, 1, 180, 'Lịch xe đã bị hủy - Hoàn lại 3,000,000 VNĐ và 1.5 điểm', 0, '2025-08-24 14:27:27'),
-(156, 1, 179, 'Lịch xe đã bị hủy - Hoàn lại 3,000,000 VNĐ và 1.5 điểm', 0, '2025-08-24 14:27:27'),
-(157, 3, 180, 'Lịch xe từ tranthiB đã bị hủy', 0, '2025-08-24 14:27:27'),
-(158, 1, 179, 'Lịch xe của bạn đã được hủy bởi tranthiB', 0, '2025-08-24 14:27:27'),
-(159, 3, 181, 'Bạn có lịch xe mới từ admin - nhận 1.000.000 VNĐ và trả 0.2 điểm (có lịch xe đi kèm)', 1, '2025-08-24 14:52:18'),
-(160, 1, 181, 'Bạn đã giao lịch xe cho người dùng - nhận 1.000.000 VNĐ và trả 0.2 điểm (có lịch xe đi kèm)', 0, '2025-08-24 14:52:18'),
-(161, 1, 181, 'Lịch xe của bạn đã được xác nhận bởi tranthiB. Bạn đã nhận 1000000.00 VNĐ và -0.2 điểm.', 0, '2025-08-24 14:52:42'),
-(162, 1, 184, 'Lịch xe đã bị hủy - Hoàn lại 1,000,000 VNĐ và 0.2 điểm', 0, '2025-08-24 14:53:21'),
-(163, 1, 183, 'Lịch xe đã bị hủy - Hoàn lại 1,000,000 VNĐ và 0.2 điểm', 0, '2025-08-24 14:53:21'),
-(164, 3, 184, 'Lịch xe từ tranthiB đã bị hủy', 0, '2025-08-24 14:53:21'),
-(165, 1, 183, 'Lịch xe của bạn đã được hủy bởi tranthiB', 0, '2025-08-24 14:53:21'),
-(166, 3, 185, 'Bạn có lịch xe mới từ admin - nhận 1.000.000 VNĐ và nhận 1 điểm (có lịch xe đi kèm)', 1, '2025-08-24 15:01:38'),
-(167, 1, 185, 'Bạn đã giao lịch xe cho người dùng - nhận 1.000.000 VNĐ và nhận 1 điểm (có lịch xe đi kèm)', 0, '2025-08-24 15:01:38'),
-(168, 1, 185, 'Lịch xe của bạn đã được xác nhận bởi tranthiB. Bạn đã nhận 1000000.00 VNĐ và 1 điểm.', 0, '2025-08-24 15:02:07'),
-(169, 1, 188, 'Lịch xe đã bị hủy - Hoàn lại 1,000,000 VNĐ và 1 điểm', 0, '2025-08-24 15:02:14'),
-(170, 1, 187, 'Lịch xe đã bị hủy - Hoàn lại 1,000,000 VNĐ và 1 điểm', 0, '2025-08-24 15:02:14'),
-(171, 3, 188, 'Lịch xe từ tranthiB đã bị hủy', 0, '2025-08-24 15:02:14'),
-(172, 1, 187, 'Lịch xe của bạn đã được hủy bởi tranthiB', 0, '2025-08-24 15:02:14'),
-(173, 3, 189, 'Bạn có lịch xe mới từ admin - nhận 1.000.000 VNĐ và nhận 2 điểm (có lịch xe đi kèm)', 1, '2025-08-24 15:25:49'),
-(174, 1, 189, 'Bạn đã giao lịch xe cho người dùng - nhận 1.000.000 VNĐ và nhận 2 điểm (có lịch xe đi kèm)', 0, '2025-08-24 15:25:49'),
-(175, 1, 189, 'Lịch xe của bạn đã được xác nhận bởi tranthiB. Bạn đã nhận 1000000.00 VNĐ và 2 điểm.', 0, '2025-08-24 15:26:02'),
-(176, 1, 192, 'Lịch xe đã bị hủy - Hoàn lại 1,000,000 VNĐ và 2 điểm', 0, '2025-08-24 15:26:09'),
-(177, 1, 191, 'Lịch xe đã bị hủy - Hoàn lại 1,000,000 VNĐ và 2 điểm', 0, '2025-08-24 15:26:09'),
-(178, 3, 192, 'Lịch xe từ tranthiB đã bị hủy', 0, '2025-08-24 15:26:09'),
-(179, 1, 191, 'Lịch xe của bạn đã được hủy bởi tranthiB', 0, '2025-08-24 15:26:09'),
-(180, 3, 193, 'Bạn có lịch xe mới từ admin - nhận 1.000.000 VNĐ và nhận 1 điểm (có lịch xe đi kèm)', 1, '2025-08-24 15:49:05'),
-(181, 1, 193, 'Bạn đã giao lịch xe cho người dùng - nhận 1.000.000 VNĐ và nhận 1 điểm (có lịch xe đi kèm)', 0, '2025-08-24 15:49:05'),
-(182, 1, 193, 'Lịch xe của bạn đã được xác nhận bởi tranthiB. Bạn đã nhận 1000000.00 VNĐ và 1 điểm.', 0, '2025-08-24 15:49:23'),
-(183, 3, 195, 'Lịch xe đã bị hủy - Hoàn lại 1,000,000 VNĐ và 1 điểm', 0, '2025-08-24 15:49:46'),
-(184, 1, 196, 'Lịch xe đã bị hủy - Hoàn lại 1,000,000 VNĐ và 1 điểm', 0, '2025-08-24 15:49:46'),
-(185, 3, 196, 'Lịch xe từ tranthiB đã bị hủy', 0, '2025-08-24 15:49:46'),
-(186, 1, 195, 'Lịch xe của bạn đã được hủy bởi tranthiB', 0, '2025-08-24 15:49:46');
 
 --
 -- Indexes for dumped tables
