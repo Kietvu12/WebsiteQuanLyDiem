@@ -126,7 +126,8 @@ class RealTimeService {
     // Polling cho notifications
     this.startPolling('notifications', async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/notifications', {
+        const API_BASE_URL = process.env.REACT_APP_API_BASE_URL
+        const response = await fetch(`${API_BASE_URL}/notifications`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'

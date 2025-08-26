@@ -41,7 +41,7 @@ const UsersPage = () => {
   })
   const [transactionType, setTransactionType] = useState('all')
   const [scheduleStatus, setScheduleStatus] = useState('all')
-
+  const API_BASE_URL = process.env.REACT_APP_API_BASE_URL
   // State cho API
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -71,7 +71,7 @@ const UsersPage = () => {
     setError(null)
     try {
       const token = localStorage.getItem('authToken')
-      const response = await fetch('http://localhost:5000/api/users', {
+      const response = await fetch(`${API_BASE_URL}/users`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -99,7 +99,7 @@ const UsersPage = () => {
     
     try {
       const token = localStorage.getItem('authToken')
-      const response = await fetch(`http://localhost:5000/api/users/${userId}/transactions`, {
+      const response = await fetch(`${API_BASE_URL}/users/${userId}/transactions`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -207,7 +207,7 @@ const UsersPage = () => {
     
     try {
       const token = localStorage.getItem('authToken')
-      const response = await fetch(`http://localhost:5000/api/users/${userId}/schedules`, {
+      const response = await fetch(`${API_BASE_URL}/users/${userId}/schedules`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -283,7 +283,7 @@ const UsersPage = () => {
     setLoading(true)
     try {
       const token = localStorage.getItem('authToken')
-      const response = await fetch('http://localhost:5000/api/users', {
+      const response = await fetch(`${API_BASE_URL}/users`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -341,7 +341,7 @@ const UsersPage = () => {
     setLoading(true)
     try {
       const token = localStorage.getItem('authToken')
-      const response = await fetch(`http://localhost:5000/api/users/${editingUser.id_nguoi_dung}`, {
+      const response = await fetch(`${API_BASE_URL}/users/${editingUser.id_nguoi_dung}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -379,7 +379,7 @@ const UsersPage = () => {
     setLoading(true)
     try {
       const token = localStorage.getItem('authToken')
-      const response = await fetch(`http://localhost:5000/api/users/${userId}`, {
+      const response = await fetch(`${API_BASE_URL}/users/${userId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,

@@ -99,7 +99,7 @@ function App() {
   return (
     <AuthProvider>
       <GlobalStateProvider>
-        <Router>
+        <Router basename="/quanlydiem">
           <AppRoutes />
         </Router>
       </GlobalStateProvider>

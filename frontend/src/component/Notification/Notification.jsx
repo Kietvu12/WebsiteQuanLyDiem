@@ -22,7 +22,7 @@ const Notification = () => {
   const [loading, setLoading] = useState(false)
   const [processingId, setProcessingId] = useState(null)
   const [markingAllAsRead, setMarkingAllAsRead] = useState(false)
-
+  const API_BASE_URL = process.env.REACT_APP_API_BASE_URL
   // Không cần loadNotifications nữa vì dữ liệu sẽ được cập nhật tự động từ global state
   // Chỉ set loading false sau khi component mount
   useEffect(() => {
@@ -132,7 +132,7 @@ const Notification = () => {
     if (!notification.da_doc) {
       try {
         const token = localStorage.getItem('authToken')
-        const response = await fetch(`http://localhost:5000/api/notifications/${notification.id_thong_bao}/read`, {
+        const response = await fetch(`${API_BASE_URL}/notifications/${notification.id_thong_bao}/read`, {
           method: 'PUT',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -159,7 +159,7 @@ const Notification = () => {
     setMarkingAllAsRead(true)
     try {
       const token = localStorage.getItem('authToken')
-      const response = await fetch('http://localhost:5000/api/notifications/mark-all-read', {
+      const response = await fetch(`${API_BASE_URL}/notifications/mark-all-read`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,

@@ -18,7 +18,7 @@ const GroupsPage = () => {
   const [selectedGroup, setSelectedGroup] = useState(null)
   const [selectedMember, setSelectedMember] = useState(null)
   const [activeTab, setActiveTab] = useState('transactions')
-  
+  const API_BASE_URL = process.env.REACT_APP_API_BASE_URL
   // State cho API
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -96,7 +96,7 @@ const GroupsPage = () => {
       const token = localStorage.getItem('authToken')
       
       // Thử lấy danh sách người dùng cơ bản trước (cho tất cả user)
-      let response = await fetch('http://localhost:5000/api/users/basic-list', {
+      let response = await fetch(`${API_BASE_URL}/users/basic-list`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -112,7 +112,7 @@ const GroupsPage = () => {
       }
       
       // Nếu không được, thử lấy danh sách đầy đủ (chỉ admin)
-      response = await fetch('http://localhost:5000/api/users', {
+      response = await fetch(`${API_BASE_URL}/users`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -212,7 +212,7 @@ const GroupsPage = () => {
     setLoading(true)
     try {
       const token = localStorage.getItem('authToken')
-      const response = await fetch('http://localhost:5000/api/groups', {
+      const response = await fetch(`${API_BASE_URL}/groups`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -262,7 +262,7 @@ const GroupsPage = () => {
     setLoading(true)
     try {
       const token = localStorage.getItem('authToken')
-      const response = await fetch(`http://localhost:5000/api/groups/${groupId}/delete`, {
+      const response = await fetch(`${API_BASE_URL}/groups/${groupId}/delete`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -302,7 +302,7 @@ const GroupsPage = () => {
     setLoading(true)
     try {
       const token = localStorage.getItem('authToken')
-      const response = await fetch('http://localhost:5000/api/groups/add-member', {
+      const response = await fetch(`${API_BASE_URL}/groups/add-member`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -334,7 +334,7 @@ const GroupsPage = () => {
     setLoading(true)
     try {
       const token = localStorage.getItem('authToken')
-      const response = await fetch('http://localhost:5000/api/groups/add-member', {
+      const response = await fetch(`${API_BASE_URL}/groups/add-member`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -372,7 +372,7 @@ const GroupsPage = () => {
     setLoading(true)
     try {
       const token = localStorage.getItem('authToken')
-      const response = await fetch(`http://localhost:5000/api/groups/${editingGroup.id_nhom}`, {
+        const response = await fetch(`${API_BASE_URL}/groups/${editingGroup.id_nhom}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
