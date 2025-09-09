@@ -26,7 +26,7 @@ const ReportsPage = () => {
   const [showContextMenu, setShowContextMenu] = useState(false)
   const [contextMenuPosition, setContextMenuPosition] = useState({ x: 0, y: 0 })
   const [selectedContextItem, setSelectedContextItem] = useState(null)
-  
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
   // State cho API
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -141,7 +141,7 @@ const ReportsPage = () => {
       }
 
       // Tìm report ID từ database dựa trên đường dẫn file
-      const response = await fetch(`http://localhost:5000/api/reports/download-by-path`, {
+      const response = await fetch(`${API_BASE_URL}/reports/download-by-path`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -181,7 +181,7 @@ const ReportsPage = () => {
         }
 
         // Tìm và xóa report từ database dựa trên đường dẫn file
-        const response = await fetch(`http://localhost:5000/api/reports/delete-by-path`, {
+        const response = await fetch(`${API_BASE_URL}/reports/delete-by-path`, {
           method: 'DELETE',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -220,7 +220,7 @@ const ReportsPage = () => {
         return
       }
 
-      const response = await fetch('http://localhost:5000/api/reports/list', {
+      const response = await fetch(`${API_BASE_URL}/reports/list`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -251,7 +251,7 @@ const ReportsPage = () => {
         return
       }
 
-      const response = await fetch(`http://localhost:5000/api/reports/download/${report.id_bao_cao}`, {
+      const response = await fetch(`${API_BASE_URL}/reports/download/${report.id_bao_cao}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         }
@@ -291,7 +291,7 @@ const ReportsPage = () => {
         return
       }
 
-      const response = await fetch(`http://localhost:5000/api/reports/${report.id_bao_cao}`, {
+      const response = await fetch(`${API_BASE_URL}/reports/${report.id_bao_cao}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -319,7 +319,7 @@ const ReportsPage = () => {
       const token = localStorage.getItem('authToken')
       if (!token) return
 
-      const response = await fetch('http://localhost:5000/api/reports/folders', {
+      const response = await fetch(`${API_BASE_URL}/reports/folders`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',

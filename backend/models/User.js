@@ -78,7 +78,7 @@ class User {
       const { ten_dang_nhap, mat_khau_hash, email, ho_ten, so_dien_thoai, dia_chi } = userData;
       const [result] = await pool.execute(
         'INSERT INTO nguoi_dung (ten_dang_nhap, mat_khau_hash, email, ho_ten, so_dien_thoai, dia_chi) VALUES (?, ?, ?, ?, ?, ?)',
-        [ten_dang_nhap, mat_khau_hash, email, ho_ten, so_dien_thoai, dia_chi]
+        [ten_dang_nhap, mat_khau_hash, email || null, ho_ten, so_dien_thoai, dia_chi]
       );
       return result.insertId;
     } catch (error) {

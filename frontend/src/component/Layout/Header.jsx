@@ -2,7 +2,6 @@ import React, { useState } from 'react'
 import { useAuth } from '../../contexts/AuthContext'
 import { useGlobalState } from '../../contexts/GlobalStateContext'
 import { 
-  SearchOutlined,
   UserOutlined,
   DownOutlined,
   EditOutlined,
@@ -22,8 +21,30 @@ const Header = ({ onToggleSidebar }) => {
   const { user, logout, updateProfile, changePassword } = useAuth()
   const { users } = useGlobalState()
   
+  // Đảm bảo user tồn tại
+  if (!user) {
+    console.warn('No user found in AuthContext')
+    return null
+  }
+  
+  // Debug: kiểm tra type và giá trị của users
+  console.log('Header users type:', typeof users, 'users value:', users, 'isArray:', Array.isArray(users))
+  
   // Tìm user hiện tại trong global state để có thông tin mới nhất
-  const currentUser = users.find(u => u.id_nguoi_dung === user?.id_nguoi_dung) || user
+  // Fallback an toàn: luôn đảm bảo currentUser có giá trị
+  let currentUser = user // Fallback về user từ AuthContext
+  
+  try {
+    if (Array.isArray(users) && users.length > 0) {
+      const foundUser = users.find(u => u.id_nguoi_dung === user?.id_nguoi_dung)
+      if (foundUser) {
+        currentUser = foundUser
+      }
+    }
+  } catch (error) {
+    console.error('Error finding current user in users array:', error)
+    // Giữ nguyên currentUser = user (fallback)
+  }
   
   const [isProfileOpen, setIsProfileOpen] = useState(false)
   const [activeModal, setActiveModal] = useState(null)
@@ -141,7 +162,7 @@ const Header = ({ onToggleSidebar }) => {
 
   return (
     <>
-      <div className="bg-white border-b border-gray-100 px-8 py-4 flex items-center justify-between fixed top-0 left-0 lg:left-72 right-0 z-30 h-16">
+            <div className="bg-white border-b border-gray-100 px-8 py-4 flex items-center justify-between fixed top-0 left-0 lg:left-72 right-0 z-30 h-16">
         {/* Mobile menu button */}
         <button
           onClick={onToggleSidebar}
@@ -150,16 +171,8 @@ const Header = ({ onToggleSidebar }) => {
           <MenuOutlined className="text-gray-600 text-lg" />
         </button>
         
-        <div className="flex-1 max-w-md">
-          <div className="relative">
-            <input
-              type="text"
-              placeholder="Quick Search (ctrl+D)"
-              className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-gray-50"
-            />
-            <SearchOutlined className="absolute left-3.5 top-3 text-gray-400 text-sm" />
-          </div>
-        </div>
+        <div className="flex-1"></div>
+        
         <div className="flex items-center space-x-4">
           {/* Notification Bell */}
           <Notification />

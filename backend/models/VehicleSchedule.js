@@ -172,18 +172,34 @@ class VehicleSchedule {
       console.log('id_nguoi_nhan:', id_nguoi_nhan);
       console.log('id_nguoi_nhan type:', typeof id_nguoi_nhan);
 
+      // Xử lý các giá trị NULL
+      const processedData = {
+        id_loai_xe: id_loai_xe || null,
+        id_loai_tuyen: id_loai_tuyen || null,
+        thoi_gian_bat_dau_don: thoi_gian_bat_dau_don || null,
+        thoi_gian_ket_thuc_don: thoi_gian_ket_thuc_don || null,
+        thoi_gian_bat_dau_tra: thoi_gian_bat_dau_tra || null,
+        thoi_gian_ket_thuc_tra: thoi_gian_ket_thuc_tra || null,
+        id_nguoi_tao: id_nguoi_tao,
+        id_nhom: id_nhom,
+        id_nguoi_nhan: id_nguoi_nhan || null
+      };
+
+      console.log('Processed schedule data:', processedData);
+
       const [result] = await pool.execute(
         `INSERT INTO lich_xe (id_loai_xe, id_loai_tuyen, thoi_gian_bat_dau_don, thoi_gian_ket_thuc_don,
                               thoi_gian_bat_dau_tra, thoi_gian_ket_thuc_tra, id_nguoi_tao, id_nhom, id_nguoi_nhan) 
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [id_loai_xe, id_loai_tuyen, thoi_gian_bat_dau_don, thoi_gian_ket_thuc_don,
-         thoi_gian_bat_dau_tra, thoi_gian_ket_thuc_tra, id_nguoi_tao, id_nhom, id_nguoi_nhan]
+        [processedData.id_loai_xe, processedData.id_loai_tuyen, processedData.thoi_gian_bat_dau_don, 
+         processedData.thoi_gian_ket_thuc_don, processedData.thoi_gian_bat_dau_tra, processedData.thoi_gian_ket_thuc_tra, 
+         processedData.id_nguoi_tao, processedData.id_nhom, processedData.id_nguoi_nhan]
       );
 
       console.log('✅ Lịch xe được tạo với ID:', result.insertId);
-      console.log('✅ id_nguoi_nhan đã được lưu:', id_nguoi_nhan);
+      console.log('✅ id_nguoi_nhan đã được lưu:', processedData.id_nguoi_nhan);
 
-      return { id: result.insertId, ...scheduleData };
+      return { id: result.insertId, ...processedData };
     } catch (error) {
       console.error('❌ Lỗi khi tạo lịch xe:', error);
       throw new Error(`Lỗi tạo lịch xe: ${error.message}`);

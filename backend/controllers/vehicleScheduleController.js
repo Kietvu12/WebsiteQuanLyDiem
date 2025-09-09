@@ -151,6 +151,18 @@ class VehicleScheduleController {
         });
       }
 
+      // Kiểm tra quyền: chỉ admin, người tạo lịch xe, hoặc người nhận lịch xe mới được xem
+      const isAdmin = req.user.la_admin === 1 || req.user.la_admin === true;
+      const isCreator = req.user.id_nguoi_dung === schedule.id_nguoi_tao;
+      const isReceiver = schedule.id_nguoi_nhan && req.user.id_nguoi_dung === schedule.id_nguoi_nhan;
+      
+      if (!isAdmin && !isCreator && !isReceiver) {
+        return res.status(403).json({
+          success: false,
+          message: 'Không có quyền xem lịch xe này'
+        });
+      }
+
       res.json({
         success: true,
         message: 'Lấy thông tin lịch xe thành công',
@@ -197,11 +209,11 @@ class VehicleScheduleController {
         id_nguoi_tao
       })
 
-      // Kiểm tra dữ liệu đầu vào
-      if (!id_loai_xe || !id_loai_tuyen || !thoi_gian_bat_dau_don || !thoi_gian_ket_thuc_don || !id_nhom) {
+      // Kiểm tra dữ liệu đầu vào - chỉ id_nhom là bắt buộc
+      if (!id_nhom) {
         return res.status(400).json({
           success: false,
-          message: 'Vui lòng điền đầy đủ thông tin bắt buộc'
+          message: 'Vui lòng chọn nhóm'
         });
       }
 

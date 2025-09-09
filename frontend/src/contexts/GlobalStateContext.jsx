@@ -202,47 +202,167 @@ export const GlobalStateProvider = ({ children }) => {
     })
   }, [])
 
-  // Hàm cập nhật đồng thời nhiều state
-  const updateMultipleStates = useCallback((updates) => {
-    if (updates.transactions) {
-      setTransactions(updates.transactions)
-    }
-    if (updates.groups) {
-      setGroups(updates.groups)
-    }
-    if (updates.users) {
-      setUsers(updates.users)
-    }
-    if (updates.schedules) {
-      setSchedules(updates.schedules)
-    }
-    if (updates.notifications) {
-      setNotifications(updates.notifications)
-    }
-  }, [])
+     // Hàm cập nhật đồng thời nhiều state
+   const updateMultipleStates = useCallback((updates) => {
+     console.log('🔔 GlobalStateContext - updateMultipleStates called with:', updates)
+     
+     if (updates.transactions) {
+       if (Array.isArray(updates.transactions)) {
+         setTransactions(updates.transactions)
+       } else if (updates.transactions && typeof updates.transactions === 'object' && 'transactions' in updates.transactions) {
+         setTransactions(Array.isArray(updates.transactions.transactions) ? updates.transactions.transactions : [])
+       } else {
+         setTransactions([])
+       }
+     }
+     if (updates.groups) {
+       if (Array.isArray(updates.groups)) {
+         setGroups(updates.groups)
+       } else if (updates.groups && typeof updates.groups === 'object' && 'groups' in updates.groups) {
+         setGroups(Array.isArray(updates.groups.groups) ? updates.groups.groups : [])
+       } else {
+         setGroups([])
+       }
+     }
+     if (updates.users) {
+       console.log('🔔 GlobalStateContext - Processing users update:', updates.users)
+       if (Array.isArray(updates.users)) {
+         console.log('✅ Setting users to array:', updates.users)
+         setUsers(updates.users)
+       } else if (updates.users && typeof updates.users === 'object' && 'users' in updates.users) {
+         console.log('✅ Setting users to updates.users.users:', updates.users.users)
+         setUsers(Array.isArray(updates.users.users) ? updates.users.users : [])
+       } else {
+         console.log('❌ Invalid users structure, setting to empty array')
+         setUsers([])
+       }
+     }
+     if (updates.schedules) {
+       if (Array.isArray(updates.schedules)) {
+         setSchedules(updates.schedules)
+       } else if (updates.schedules && typeof updates.schedules === 'object' && 'schedules' in updates.schedules) {
+         setSchedules(Array.isArray(updates.schedules.schedules) ? updates.schedules.schedules : [])
+       } else {
+         setSchedules([])
+       }
+     }
+     if (updates.notifications) {
+       if (Array.isArray(updates.notifications)) {
+         setNotifications(updates.notifications)
+       } else if (updates.notifications && typeof updates.notifications === 'object' && 'notifications' in updates.notifications) {
+         setNotifications(Array.isArray(updates.notifications.notifications) ? updates.notifications.notifications : [])
+       } else {
+         setNotifications([])
+       }
+     }
+   }, [])
 
   // Hàm khởi tạo real-time updates
   const initializeRealTimeUpdates = useCallback((token, userId, isAdmin = false) => {
     // Đăng ký listeners cho real-time updates
-    const unsubscribeTransactions = realTimeService.subscribe('transactions', (data) => {
-      setTransactions(data)
-    })
+         const unsubscribeTransactions = realTimeService.subscribe('transactions', (data) => {
+       // Đảm bảo data là array trước khi set
+       if (Array.isArray(data)) {
+         setTransactions(data)
+       } else if (data && data.transactions && Array.isArray(data.transactions)) {
+         setTransactions(data.transactions)
+       } else if (data && typeof data === 'object' && 'transactions' in data) {
+         // Xử lý trường hợp data có cấu trúc {transactions: [...]}
+         if (Array.isArray(data.transactions)) {
+           setTransactions(data.transactions)
+         } else {
+           console.warn('Invalid transactions data structure:', data)
+           setTransactions([])
+         }
+       } else {
+         console.warn('Invalid transactions data received:', data)
+         setTransactions([])
+       }
+     })
 
-    const unsubscribeGroups = realTimeService.subscribe('groups', (data) => {
-      setGroups(data)
-    })
+         const unsubscribeGroups = realTimeService.subscribe('groups', (data) => {
+       // Đảm bảo data là array trước khi set
+       if (Array.isArray(data)) {
+         setGroups(data)
+       } else if (data && data.groups && Array.isArray(data.groups)) {
+         setGroups(data.groups)
+       } else if (data && typeof data === 'object' && 'groups' in data) {
+         // Xử lý trường hợp data có cấu trúc {groups: [...]}
+         if (Array.isArray(data.groups)) {
+           setGroups(data.groups)
+         } else {
+           console.warn('Invalid groups data structure:', data)
+           setGroups([])
+         }
+       } else {
+         console.warn('Invalid groups data received:', data)
+         setGroups([])
+       }
+     })
 
-    const unsubscribeUsers = realTimeService.subscribe('users', (data) => {
-      setUsers(data)
-    })
+         const unsubscribeUsers = realTimeService.subscribe('users', (data) => {
+       console.log('🔔 GlobalStateContext - Users subscription received:', data)
+       // Đảm bảo data là array trước khi set
+       if (Array.isArray(data)) {
+         console.log('✅ Setting users to array:', data)
+         setUsers(data)
+       } else if (data && data.users && Array.isArray(data.users)) {
+         console.log('✅ Setting users to data.users:', data.users)
+         setUsers(data.users)
+       } else if (data && typeof data === 'object' && 'users' in data) {
+         // Xử lý trường hợp data có cấu trúc {users: [...]}
+         if (Array.isArray(data.users)) {
+           console.log('✅ Setting users to data.users (nested):', data.users)
+           setUsers(data.users)
+         } else {
+           console.warn('❌ Invalid users data structure:', data)
+           setUsers([])
+         }
+       } else {
+         console.warn('❌ Invalid users data received:', data)
+         setUsers([])
+       }
+     })
 
-    const unsubscribeSchedules = realTimeService.subscribe('schedules', (data) => {
-      setSchedules(data)
-    })
+         const unsubscribeSchedules = realTimeService.subscribe('schedules', (data) => {
+       // Đảm bảo data là array trước khi set
+       if (Array.isArray(data)) {
+         setSchedules(data)
+       } else if (data && data.schedules && Array.isArray(data.schedules)) {
+         setSchedules(data.schedules)
+       } else if (data && typeof data === 'object' && 'schedules' in data) {
+         // Xử lý trường hợp data có cấu trúc {schedules: [...]}
+         if (Array.isArray(data.schedules)) {
+           setSchedules(data.schedules)
+         } else {
+           console.warn('Invalid schedules data structure:', data)
+           setSchedules([])
+         }
+       } else {
+         console.warn('Invalid schedules data received:', data)
+         setSchedules([])
+       }
+     })
 
-    const unsubscribeNotifications = realTimeService.subscribe('notifications', (data) => {
-      setNotifications(data)
-    })
+         const unsubscribeNotifications = realTimeService.subscribe('notifications', (data) => {
+       // Đảm bảo data là array trước khi set
+       if (Array.isArray(data)) {
+         setNotifications(data)
+       } else if (data && data.notifications && Array.isArray(data.notifications)) {
+         setNotifications(data.notifications)
+       } else if (data && typeof data === 'object' && 'notifications' in data) {
+         // Xử lý trường hợp data có cấu trúc {notifications: [...]}
+         if (Array.isArray(data.notifications)) {
+           setNotifications(data.notifications)
+         } else {
+           console.warn('Invalid notifications data structure:', data)
+           setNotifications([])
+         }
+       } else {
+         console.warn('Invalid notifications data received:', data)
+         setNotifications([])
+       }
+     })
 
     // Khởi tạo polling
     realTimeService.initializePolling(token, userId, isAdmin)

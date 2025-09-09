@@ -20,15 +20,38 @@ const Sidebar = ({ isOpen, onClose }) => {
   const { user } = useAuth()
   const { users } = useGlobalState()
   
+  // Đảm bảo user tồn tại
+  if (!user) {
+    console.warn('No user found in AuthContext')
+    return null
+  }
+  
+  // Debug: kiểm tra type và giá trị của users
+  console.log('Sidebar users type:', typeof users, 'users value:', users, 'isArray:', Array.isArray(users))
+  
   // Tìm user hiện tại trong global state để có thông tin mới nhất
-  const currentUser = users.find(u => u.id_nguoi_dung === user?.id_nguoi_dung) || user
+  // Fallback an toàn: luôn đảm bảo currentUser có giá trị
+  let currentUser = user // Fallback về user từ AuthContext
+  
+  try {
+    if (Array.isArray(users) && users.length > 0) {
+      const foundUser = users.find(u => u.id_nguoi_dung === user?.id_nguoi_dung)
+      if (foundUser) {
+        currentUser = foundUser
+      }
+    }
+  } catch (error) {
+    console.error('Error finding current user in users array:', error)
+    // Giữ nguyên currentUser = user (fallback)
+  }
   
   console.log('Sidebar user:', currentUser);
   
   // Menu items dựa trên vai trò
   const getMenuItems = () => {
     // Sửa logic so sánh: la_admin có thể là 1 hoặc true
-    const isAdmin = currentUser?.la_admin === 1 || currentUser?.la_admin === true
+    // Đảm bảo currentUser tồn tại trước khi truy cập thuộc tính
+    const isAdmin = currentUser && (currentUser.la_admin === 1 || currentUser.la_admin === true)
     
     const baseMenuItems = [
       {

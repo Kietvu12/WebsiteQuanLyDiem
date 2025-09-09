@@ -309,13 +309,13 @@ class Transaction {
       console.log('  - noi_dung:', processedData.noi_dung, '(type:', typeof processedData.noi_dung, ')');
 
       console.log('🚀 Thực hiện SQL INSERT:');
-      console.log('  - SQL Query:', `INSERT INTO giao_dich (id_loai_giao_dich, id_nguoi_gui, id_nguoi_nhan, id_nhom, id_lich_xe, so_tien, diem, noi_dung, trang_thai, ngay_hoan_thanh) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)`);
-      console.log('  - Parameters:', [processedData.id_loai_giao_dich, processedData.id_nguoi_gui, processedData.id_nguoi_nhan, processedData.id_nhom, processedData.id_lich_xe, processedData.so_tien, processedData.diem, processedData.noi_dung, processedData.trang_thai]);
+      console.log('  - SQL Query:', `INSERT INTO giao_dich (id_loai_giao_dich, id_nguoi_gui, id_nguoi_nhan, id_nhom, id_lich_xe, so_tien, diem, noi_dung, trang_thai, ngay_hoan_thanh) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CASE WHEN ? = 'hoan_thanh' THEN CURRENT_TIMESTAMP ELSE NULL END)`);
+      console.log('  - Parameters:', [processedData.id_loai_giao_dich, processedData.id_nguoi_gui, processedData.id_nguoi_nhan, processedData.id_nhom, processedData.id_lich_xe, processedData.so_tien, processedData.diem, processedData.noi_dung, processedData.trang_thai, processedData.trang_thai]);
       
       const [result] = await pool.execute(
         `INSERT INTO giao_dich (id_loai_giao_dich, id_nguoi_gui, id_nguoi_nhan, id_nhom, id_lich_xe, so_tien, diem, noi_dung, trang_thai, ngay_hoan_thanh) 
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)`,
-        [processedData.id_loai_giao_dich, processedData.id_nguoi_gui, processedData.id_nguoi_nhan, processedData.id_nhom, processedData.id_lich_xe, processedData.so_tien, processedData.diem, processedData.noi_dung, processedData.trang_thai]
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CASE WHEN ? = 'hoan_thanh' THEN CURRENT_TIMESTAMP ELSE NULL END)`,
+        [processedData.id_loai_giao_dich, processedData.id_nguoi_gui, processedData.id_nguoi_nhan, processedData.id_nhom, processedData.id_lich_xe, processedData.so_tien, processedData.diem, processedData.noi_dung, processedData.trang_thai, processedData.trang_thai]
       );
       
       console.log('✅ SQL INSERT thành công - Result:', result);
@@ -412,7 +412,7 @@ class Transaction {
   }
 
   // Tìm giao dịch đối ứng (opposite transaction)
-  static async findOppositeTransaction(senderId, receiverId, groupId, scheduleId, typeId) {
+  static async findOppositeTransaction(senderId, receiverId, groupId, scheduleId, typeId, trangThai = 'cho_xac_nhan') {
     try {
       // Xác định loại giao dịch đối ứng
       let oppositeTypeId;
@@ -431,7 +431,38 @@ class Transaction {
          AND id_nhom = ? 
          AND id_lich_xe = ? 
          AND id_loai_giao_dich = ?
-         AND trang_thai = 'cho_xac_nhan'
+         AND trang_thai = ?
+         ORDER BY ngay_tao DESC 
+         LIMIT 1`,
+        [receiverId, senderId, groupId, scheduleId, oppositeTypeId, trangThai]
+      );
+      
+      return rows[0] || null;
+    } catch (error) {
+      throw new Error(`Lỗi tìm giao dịch đối ứng: ${error.message}`);
+    }
+  }
+
+  // Tìm giao dịch đối ứng bất kể trạng thái (để hủy giao dịch)
+  static async findOppositeTransactionAnyStatus(senderId, receiverId, groupId, scheduleId, typeId) {
+    try {
+      // Xác định loại giao dịch đối ứng
+      let oppositeTypeId;
+      if (typeId === 1) { // Giao lịch
+        oppositeTypeId = 2; // Nhận lịch
+      } else if (typeId === 4) { // San cho
+        oppositeTypeId = 5; // Nhận san
+      } else {
+        throw new Error('Loại giao dịch không hỗ trợ tìm đối ứng');
+      }
+
+      const [rows] = await pool.execute(
+        `SELECT * FROM giao_dich 
+         WHERE id_nguoi_gui = ? 
+         AND id_nguoi_nhan = ? 
+         AND id_nhom = ? 
+         AND id_lich_xe = ? 
+         AND id_loai_giao_dich = ?
          ORDER BY ngay_tao DESC 
          LIMIT 1`,
         [receiverId, senderId, groupId, scheduleId, oppositeTypeId]

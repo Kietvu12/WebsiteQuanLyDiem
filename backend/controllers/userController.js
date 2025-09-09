@@ -4,6 +4,44 @@ const { User, Group, Transaction, VehicleSchedule } = require('../models');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-here';
 
+// Helper function để tạo username từ họ tên
+function generateUsernameFromName(fullName) {
+  // Loại bỏ dấu tiếng Việt và chuyển thành chữ thường
+  const removeVietnameseAccents = (str) => {
+    return str
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/đ/g, 'd')
+      .replace(/Đ/g, 'D')
+      .toLowerCase();
+  };
+
+  // Tách tên thành các từ
+  const words = fullName.trim().split(/\s+/);
+  
+  if (words.length === 0) {
+    return 'user' + Math.floor(Math.random() * 10000);
+  }
+
+  // Lấy từ cuối cùng (tên)
+  const lastName = words[words.length - 1];
+  const cleanLastName = removeVietnameseAccents(lastName);
+  
+  // Lấy 4 ký tự cuối của tên
+  let username = cleanLastName.slice(-4);
+  
+  // Nếu tên ngắn hơn 4 ký tự, lấy toàn bộ tên
+  if (username.length < 4) {
+    username = cleanLastName;
+  }
+  
+  // Thêm số ngẫu nhiên 4 chữ số
+  const randomNumber = Math.floor(Math.random() * 10000);
+  username += randomNumber.toString().padStart(4, '0');
+  
+  return username;
+}
+
 class UserController {
   // Đăng nhập
   static async login(req, res) {
@@ -224,6 +262,113 @@ class UserController {
     }
   }
 
+  // Tạo nhiều người dùng cùng lúc (chỉ admin)
+  static async createMultipleUsers(req, res) {
+    try {
+      // Kiểm tra quyền admin
+      const isAdmin = req.user.la_admin === 1 || req.user.la_admin === true;
+      
+      if (!isAdmin) {
+        return res.status(403).json({
+          success: false,
+          message: 'Chỉ admin mới có quyền tạo người dùng mới'
+        });
+      }
+      
+      const { users } = req.body;
+
+      if (!users || !Array.isArray(users) || users.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Vui lòng cung cấp danh sách người dùng hợp lệ'
+        });
+      }
+
+      const results = [];
+      const errors = [];
+
+      for (let i = 0; i < users.length; i++) {
+        const userData = users[i];
+        const { ho_ten } = userData;
+
+        try {
+          // Kiểm tra dữ liệu đầu vào
+          if (!ho_ten || !ho_ten.trim()) {
+            errors.push({
+              index: i,
+              ho_ten: ho_ten || '',
+              error: 'Họ tên không được để trống'
+            });
+            continue;
+          }
+
+          // Tạo tên đăng nhập từ họ tên
+          const ten_dang_nhap = generateUsernameFromName(ho_ten.trim());
+          
+          // Kiểm tra tên đăng nhập đã tồn tại
+          const existingUser = await User.getByUsername(ten_dang_nhap);
+          if (existingUser) {
+            errors.push({
+              index: i,
+              ho_ten: ho_ten.trim(),
+              error: `Tên đăng nhập ${ten_dang_nhap} đã tồn tại`
+            });
+            continue;
+          }
+
+          // Hash mật khẩu mặc định
+          const saltRounds = 10;
+          const mat_khau_hash = await bcrypt.hash('123456@user', saltRounds);
+
+          // Tạo người dùng mới (chỉ với tên đăng nhập, mật khẩu và họ tên)
+          const userId = await User.create({
+            ten_dang_nhap,
+            mat_khau_hash,
+            email: null,
+            ho_ten: ho_ten.trim(),
+            so_dien_thoai: null,
+            dia_chi: null
+          });
+
+          results.push({
+            index: i,
+            ho_ten: ho_ten.trim(),
+            ten_dang_nhap,
+            id: userId,
+            success: true
+          });
+
+        } catch (error) {
+          errors.push({
+            index: i,
+            ho_ten: ho_ten || '',
+            error: error.message
+          });
+        }
+      }
+
+      res.status(201).json({
+        success: true,
+        message: `Tạo thành công ${results.length} người dùng, ${errors.length} lỗi`,
+        data: {
+          success: results,
+          errors: errors,
+          summary: {
+            total: users.length,
+            success: results.length,
+            errors: errors.length
+          }
+        }
+      });
+    } catch (error) {
+      console.error('Lỗi tạo nhiều người dùng:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Lỗi server khi tạo nhiều người dùng'
+      });
+    }
+  }
+
   // Tạo người dùng mới (chỉ admin)
   static async createUser(req, res) {
     try {
@@ -240,10 +385,10 @@ class UserController {
       const { ten_dang_nhap, mat_khau, email, ho_ten, so_dien_thoai, dia_chi } = req.body;
 
       // Kiểm tra dữ liệu đầu vào
-      if (!ten_dang_nhap || !mat_khau || !email || !ho_ten) {
+      if (!ten_dang_nhap || !mat_khau || !ho_ten) {
         return res.status(400).json({
           success: false,
-          message: 'Vui lòng điền đầy đủ thông tin bắt buộc'
+          message: 'Vui lòng điền đầy đủ thông tin bắt buộc (tên đăng nhập, mật khẩu, họ tên)'
         });
       }
 
@@ -256,13 +401,15 @@ class UserController {
         });
       }
 
-      // Kiểm tra email đã tồn tại
-      const existingEmail = await User.getByEmail(email);
-      if (existingEmail) {
-        return res.status(400).json({
-          success: false,
-          message: 'Email đã tồn tại'
-        });
+      // Kiểm tra email đã tồn tại (chỉ khi có email)
+      if (email && email.trim()) {
+        const existingEmail = await User.getByEmail(email);
+        if (existingEmail) {
+          return res.status(400).json({
+            success: false,
+            message: 'Email đã tồn tại'
+          });
+        }
       }
 
       // Hash mật khẩu
@@ -564,7 +711,11 @@ class UserController {
       const { id } = req.params;
       
       // Kiểm tra quyền: chỉ admin hoặc chính người dùng đó mới được xem
-      if (req.user.id_nguoi_dung !== parseInt(id) && !req.user.la_admin) {
+      const userId = parseInt(id);
+      const isOwnUser = req.user.id_nguoi_dung === userId;
+      const isAdmin = req.user.la_admin === 1 || req.user.la_admin === true;
+      
+      if (!isOwnUser && !isAdmin) {
         return res.status(403).json({
           success: false,
           message: 'Không có quyền xem lịch xe của người dùng khác'

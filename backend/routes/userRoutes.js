@@ -25,12 +25,13 @@ router.get('/:id/groups', UserController.getUserGroups);
 router.get('/:id/transactions', UserController.getUserTransactions);
 router.get('/:id/schedules', UserController.getUserSchedules);
 
-// Routes chỉ dành cho admin
+// Routes chỉ dành cho admin (đặt sau /:id để tránh xung đột)
 router.use(requireAdmin);
 
 // Admin routes
 router.get('/', UserController.getAllUsers);
 router.post('/', UserController.createUser);
+router.post('/multiple', UserController.createMultipleUsers);
 router.delete('/:id', UserController.deleteUser);
 
 module.exports = router;

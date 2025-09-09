@@ -156,6 +156,43 @@ class TransactionController {
 
       console.log('User is member of group, proceeding with transaction creation...')
 
+      // Xử lý tạo lịch xe tự động cho giao dịch "Nhận lịch" nếu không có lịch xe
+      if (id_loai_giao_dich === 2 && !processedIdLichXe) {
+        console.log('=== TỰ ĐỘNG TẠO LỊCH XE CHO GIAO DỊCH NHẬN LỊCH ===');
+        console.log('Giao dịch Nhận lịch không có lịch xe - tạo lịch xe mới với dữ liệu mặc định');
+        
+        try {
+          const { VehicleSchedule } = require('../models');
+          
+          // Tạo lịch xe mới với dữ liệu mặc định
+          const defaultScheduleData = {
+            id_loai_xe: null, // Mặc định không chọn loại xe
+            id_loai_tuyen: null, // Mặc định không chọn loại tuyến
+            thoi_gian_bat_dau_don: null, // Mặc định không có thời gian bắt đầu đón
+            thoi_gian_ket_thuc_don: null, // Mặc định không có thời gian kết thúc đón
+            thoi_gian_bat_dau_tra: null, // Mặc định không có thời gian bắt đầu trả
+            thoi_gian_ket_thuc_tra: null, // Mặc định không có thời gian kết thúc trả
+            id_nguoi_tao: id_nguoi_gui, // Người gửi giao dịch là người tạo lịch xe
+            id_nhom: id_nhom, // Sử dụng nhóm từ giao dịch
+            id_nguoi_nhan: id_nguoi_nhan // Người nhận giao dịch là người nhận lịch xe
+          };
+          
+          console.log('Dữ liệu lịch xe mặc định:', defaultScheduleData);
+          
+          const newScheduleId = await VehicleSchedule.create(defaultScheduleData);
+          processedIdLichXe = newScheduleId;
+          
+          console.log(`✅ Đã tạo lịch xe mới với ID: ${newScheduleId} cho giao dịch Nhận lịch`);
+          
+        } catch (scheduleError) {
+          console.error('❌ Lỗi khi tạo lịch xe tự động:', scheduleError);
+          console.error('Error details:', scheduleError.message);
+          console.error('Error stack:', scheduleError.stack);
+          // Không dừng quá trình tạo giao dịch nếu tạo lịch xe thất bại
+          console.log('⚠️ Tiếp tục tạo giao dịch mà không có lịch xe...');
+        }
+      }
+
       // Tự động tính điểm cho giao dịch Giao lịch nếu có lịch xe
       let calculatedPoints = diem; // Sử dụng điểm được gửi lên nếu có
       
@@ -182,6 +219,10 @@ class TransactionController {
           console.error('❌ Lỗi khi tính điểm tự động:', error);
           calculatedPoints = null; // Để admin nhập thủ công
         }
+      } else if (id_loai_giao_dich === 1 && !processedIdLichXe) {
+        // Giao dịch Giao lịch không có lịch xe - không tính điểm tự động
+        console.log('⚠️ Giao dịch Giao lịch không có lịch xe - không tính điểm tự động');
+        calculatedPoints = diem || null;
       }
 
       // Xử lý theo loại giao dịch
@@ -257,6 +298,40 @@ class TransactionController {
           console.log('✅ Giao dịch đối ứng đã được liên kết với lịch xe ID:', processedIdLichXe)
         } catch (oppositeError) {
           console.error('❌ Lỗi khi tạo giao dịch đối ứng (Nhận lịch):')
+          console.error('Error details:', oppositeError)
+          console.error('Error message:', oppositeError.message)
+          console.error('Error stack:', oppositeError.stack)
+          console.error('Opposite transaction data that failed:', oppositeTransactionData)
+          // Không dừng quá trình nếu tạo giao dịch đối ứng thất bại
+          console.log('⚠️ Tiếp tục xử lý giao dịch chính...')
+        }
+        
+      } else if (id_loai_giao_dich === 2) { // Nhận lịch
+        console.log('=== TẠO GIAO DỊCH ĐỐI ỨNG: GIAO LỊCH ===')
+        console.log('ID lịch xe từ giao dịch chính:', processedIdLichXe)
+        
+        // Tạo giao dịch "Giao lịch" đối ứng
+        const oppositeTransactionData = {
+          id_loai_giao_dich: 1, // Giao lịch
+          id_nguoi_gui: id_nguoi_nhan, // Người nhận lịch trở thành người gửi
+          id_nguoi_nhan: id_nguoi_gui, // Người giao lịch trở thành người nhận
+          id_nhom,
+          id_lich_xe: processedIdLichXe, // Sử dụng ID lịch xe từ giao dịch chính (có thể là lịch xe mới tạo)
+          so_tien: so_tien ? -so_tien : null, // Đảo dấu tiền (người giao lịch sẽ được cộng tiền)
+          diem: calculatedPoints ? -calculatedPoints : null, // Đảo dấu điểm đã tính được
+          noi_dung: `Giao lịch: ${noi_dung}`,
+          trang_thai: 'cho_xac_nhan' // Chờ xác nhận
+        };
+        
+        console.log('Opposite transaction data (Giao lịch):', oppositeTransactionData);
+        console.log('✅ ID lịch xe được liên kết đúng:', oppositeTransactionData.id_lich_xe);
+        
+        try {
+          oppositeTransactionId = await Transaction.create(oppositeTransactionData);
+          console.log('Opposite transaction (Giao lịch) created with ID:', oppositeTransactionId)
+          console.log('✅ Giao dịch đối ứng đã được liên kết với lịch xe ID:', processedIdLichXe)
+        } catch (oppositeError) {
+          console.error('❌ Lỗi khi tạo giao dịch đối ứng (Giao lịch):')
           console.error('Error details:', oppositeError)
           console.error('Error message:', oppositeError.message)
           console.error('Error stack:', oppositeError.stack)
@@ -401,7 +476,32 @@ class TransactionController {
             }
             break;
           case 2: // Nhận lịch
-            notificationContent = `Lịch xe của bạn đã được xác nhận`;
+            let tienTextNhanLich = '';
+            let diemTextNhanLich = '';
+            
+            if (so_tien !== null && so_tien !== undefined && so_tien !== 0) {
+              tienTextNhanLich = so_tien > 0 ? `nhận ${so_tien.toLocaleString('vi-VN')} VNĐ` : `trả ${Math.abs(so_tien).toLocaleString('vi-VN')} VNĐ`;
+            }
+            
+            if (calculatedPoints !== null && calculatedPoints !== undefined && calculatedPoints !== 0) {
+              diemTextNhanLich = calculatedPoints > 0 ? `nhận ${calculatedPoints} điểm` : `trả ${Math.abs(calculatedPoints)} điểm`;
+            }
+            
+            // Thêm thông tin lịch xe nếu có
+            let lichXeTextNhanLich = '';
+            if (processedIdLichXe) {
+              lichXeTextNhanLich = ' (có lịch xe đi kèm)';
+            }
+            
+            if (tienTextNhanLich && diemTextNhanLich) {
+              notificationContent = `Bạn có lịch xe mới từ ${req.user.ten_dang_nhap} - ${tienTextNhanLich} và ${diemTextNhanLich}${lichXeTextNhanLich}`;
+            } else if (tienTextNhanLich) {
+              notificationContent = `Bạn có lịch xe mới từ ${req.user.ten_dang_nhap} - ${tienTextNhanLich}${lichXeTextNhanLich}`;
+            } else if (diemTextNhanLich) {
+              notificationContent = `Bạn có lịch xe mới từ ${req.user.ten_dang_nhap} - ${diemTextNhanLich}${lichXeTextNhanLich}`;
+            } else {
+              notificationContent = `Bạn có lịch xe mới từ ${req.user.ten_dang_nhap}${lichXeTextNhanLich}`;
+            }
             break;
           case 4: // San cho
             let sanTienText = '';
@@ -496,6 +596,34 @@ class TransactionController {
               senderNotificationContent = `Bạn đã giao lịch xe cho ${req.body.nguoi_nhan_ten || 'người dùng'}${lichXeText}`;
             }
             break;
+          case 2: // Nhận lịch
+            let tienTextNhanLich = '';
+            let diemTextNhanLich = '';
+            
+            if (so_tien !== null && so_tien !== undefined && so_tien !== 0) {
+              tienTextNhanLich = so_tien > 0 ? `nhận ${so_tien.toLocaleString('vi-VN')} VNĐ` : `trả ${Math.abs(so_tien).toLocaleString('vi-VN')} VNĐ`;
+            }
+            
+            if (calculatedPoints !== null && calculatedPoints !== undefined && calculatedPoints !== 0) {
+              diemTextNhanLich = calculatedPoints > 0 ? `nhận ${calculatedPoints} điểm` : `trả ${Math.abs(calculatedPoints)} điểm`;
+            }
+            
+            // Thêm thông tin lịch xe nếu có
+            let lichXeTextNhanLich = '';
+            if (processedIdLichXe) {
+              lichXeTextNhanLich = ' (có lịch xe đi kèm)';
+            }
+            
+            if (tienTextNhanLich && diemTextNhanLich) {
+              senderNotificationContent = `Bạn đã nhận lịch xe từ ${req.body.nguoi_nhan_ten || 'người dùng'} - ${tienTextNhanLich} và ${diemTextNhanLich}${lichXeTextNhanLich}`;
+            } else if (tienTextNhanLich) {
+              senderNotificationContent = `Bạn đã nhận lịch xe từ ${req.body.nguoi_nhan_ten || 'người dùng'} - ${tienTextNhanLich}${lichXeTextNhanLich}`;
+            } else if (diemTextNhanLich) {
+              senderNotificationContent = `Bạn đã nhận lịch xe từ ${req.body.nguoi_nhan_ten || 'người dùng'} - ${diemTextNhanLich}${lichXeTextNhanLich}`;
+            } else {
+              senderNotificationContent = `Bạn đã nhận lịch xe từ ${req.body.nguoi_nhan_ten || 'người dùng'}${lichXeTextNhanLich}`;
+            }
+            break;
           case 4: // San cho
             let sanTienText = '';
             let sanDiemText = '';
@@ -563,6 +691,15 @@ class TransactionController {
             message: `Đã tự động tính được ${calculatedPoints} điểm`
           };
         }
+      }
+
+      // Thêm thông tin về việc tạo lịch xe tự động cho giao dịch Nhận lịch
+      if (id_loai_giao_dich === 2 && processedIdLichXe) {
+        responseData.data.autoScheduleCreation = {
+          status: 'created',
+          scheduleId: processedIdLichXe,
+          message: 'Đã tự động tạo lịch xe mới với dữ liệu mặc định'
+        };
       }
 
       // Thêm thông tin về việc cập nhật số dư và điểm cho giao dịch San cho
@@ -925,22 +1062,52 @@ class TransactionController {
 
       console.log('Proceeding with transaction cancellation...')
 
-      // Nếu là giao dịch giao lịch và có lịch xe, xóa lịch xe
-      if (transaction.id_loai_giao_dich === 1 && transaction.id_lich_xe) {
-        console.log('Deleting associated vehicle schedule...')
+      // Tìm và hủy giao dịch đối ứng nếu là giao dịch giao lịch
+      let oppositeTransaction = null;
+      if (transaction.id_loai_giao_dich === 1) { // Giao lịch
+        console.log('=== TÌM VÀ HỦY GIAO DỊCH ĐỐI ỨNG (NHẬN LỊCH) ===')
         try {
-          const { VehicleSchedule } = require('../models');
-          await VehicleSchedule.delete(transaction.id_lich_xe);
-          console.log('Vehicle schedule deleted successfully')
-        } catch (scheduleError) {
-          console.error('Error deleting vehicle schedule:', scheduleError)
-          // Không dừng quá trình hủy giao dịch nếu xóa lịch xe thất bại
+          oppositeTransaction = await Transaction.findOppositeTransactionAnyStatus(
+            transaction.id_nguoi_gui, // người giao lịch
+            transaction.id_nguoi_nhan, // người nhận lịch
+            transaction.id_nhom,
+            transaction.id_lich_xe,
+            1 // loại giao dịch "Giao lịch" để tìm đối ứng "Nhận lịch"
+          );
+          
+          if (oppositeTransaction) {
+            console.log('✅ Tìm thấy giao dịch đối ứng (Nhận lịch):', oppositeTransaction.id_giao_dich)
+            
+            // Hủy giao dịch đối ứng
+            await Transaction.updateStatus(oppositeTransaction.id_giao_dich, 'da_huy');
+            console.log('✅ Giao dịch đối ứng (Nhận lịch) đã được hủy')
+          } else {
+            console.log('⚠️ Không tìm thấy giao dịch đối ứng (Nhận lịch)')
+          }
+        } catch (error) {
+          console.error('❌ Lỗi khi tìm giao dịch đối ứng:', error)
+          // Không dừng quá trình hủy nếu tìm giao dịch đối ứng thất bại
         }
       }
 
-      // Cập nhật trạng thái giao dịch
+      // Nếu là giao dịch giao lịch và có lịch xe, cập nhật trạng thái lịch xe thành đã hủy
+      if (transaction.id_loai_giao_dich === 1 && transaction.id_lich_xe) {
+        console.log('=== CẬP NHẬT TRẠNG THÁI LỊCH XE THÀNH ĐÃ HỦY ===')
+        console.log('ID lịch xe:', transaction.id_lich_xe)
+        
+        try {
+          const { VehicleSchedule } = require('../models');
+          await VehicleSchedule.updateStatus(transaction.id_lich_xe, 'da_huy');
+          console.log('✅ Lịch xe đã được cập nhật trạng thái "đã hủy"')
+        } catch (scheduleError) {
+          console.error('❌ Lỗi khi cập nhật trạng thái lịch xe:', scheduleError)
+          // Không dừng quá trình hủy nếu cập nhật lịch xe thất bại
+        }
+      }
+
+      // Cập nhật trạng thái giao dịch chính
       await Transaction.updateStatus(id, 'da_huy');
-      console.log('Transaction status updated to cancelled')
+      console.log('✅ Giao dịch chính đã được hủy')
 
       // Tạo thông báo cho người nhận (nếu có)
       if (transaction.id_nguoi_nhan) {
@@ -978,10 +1145,17 @@ class TransactionController {
       console.log('Tên người hủy:', req.user.ten_dang_nhap)
       
       try {
+        let notificationMessage = '';
+        if (transaction.id_loai_giao_dich === 1) { // Giao lịch
+          notificationMessage = `Giao dịch giao lịch của bạn đã bị hủy bởi ${req.user.ten_dang_nhap}. Cả giao dịch "Nhận lịch" và lịch xe đã được hủy.`;
+        } else {
+          notificationMessage = `Giao dịch của bạn đã bị hủy bởi ${req.user.ten_dang_nhap}.`;
+        }
+        
         const notificationData = {
           id_nguoi_dung: transaction.id_nguoi_gui,
           id_giao_dich: id,
-          noi_dung: `Giao dịch giao lịch của bạn đã bị hủy bởi ${req.user.ten_dang_nhap}. Lịch xe đã được xóa.`
+          noi_dung: notificationMessage
         };
         console.log('Dữ liệu thông báo hủy cho người giao lịch:', notificationData)
         
@@ -996,10 +1170,65 @@ class TransactionController {
         // Không dừng quá trình hủy nếu tạo thông báo thất bại
       }
 
+      // Tạo thông báo cho người nhận (người nhận lịch) khi giao dịch bị hủy
+      if (transaction.id_loai_giao_dich === 1 && transaction.id_nguoi_nhan) {
+        console.log('=== TẠO THÔNG BÁO HỦY CHO NGƯỜI NHẬN LỊCH ===')
+        console.log('ID người nhận lịch:', transaction.id_nguoi_nhan)
+        console.log('ID giao dịch:', id)
+        console.log('Tên người hủy:', req.user.ten_dang_nhap)
+        
+        try {
+          const notificationData = {
+            id_nguoi_dung: transaction.id_nguoi_nhan,
+            id_giao_dich: id,
+            noi_dung: `Giao dịch nhận lịch của bạn đã bị hủy bởi ${req.user.ten_dang_nhap}. Lịch xe đã được hủy.`
+          };
+          console.log('Dữ liệu thông báo hủy cho người nhận lịch:', notificationData)
+          
+          const notificationId = await Notification.create(notificationData);
+          console.log('✅ Thông báo hủy cho người nhận lịch được tạo thành công với ID:', notificationId)
+          console.log('=== THÔNG BÁO HỦY CHO NGƯỜI NHẬN LỊCH ĐÃ ĐƯỢC GỬI ===')
+        } catch (notificationError) {
+          console.error('❌ Lỗi khi tạo thông báo hủy cho người nhận lịch:')
+          console.error('Error details:', notificationError)
+          console.error('Error message:', notificationError.message)
+          console.error('Error stack:', notificationError.stack)
+          // Không dừng quá trình hủy nếu tạo thông báo thất bại
+        }
+      }
+
+      // Tạo response message dựa trên loại giao dịch
+      let responseMessage = 'Hủy giao dịch thành công';
+      if (transaction.id_loai_giao_dich === 1) {
+        if (oppositeTransaction) {
+          responseMessage = 'Hủy giao dịch thành công. Cả giao dịch "Nhận lịch" và lịch xe đã được hủy.';
+        } else {
+          responseMessage = 'Hủy giao dịch thành công. Lịch xe đã được hủy.';
+        }
+      }
+
       console.log('=== cancelTransaction Success ===')
       res.json({
         success: true,
-        message: 'Hủy giao dịch thành công'
+        message: responseMessage,
+        data: {
+          cancelledTransaction: {
+            id: id,
+            type: 'main'
+          },
+          ...(oppositeTransaction && {
+            cancelledOppositeTransaction: {
+              id: oppositeTransaction.id_giao_dich,
+              type: 'opposite'
+            }
+          }),
+          ...(transaction.id_lich_xe && {
+            cancelledSchedule: {
+              id: transaction.id_lich_xe,
+              status: 'da_huy'
+            }
+          })
+        }
       });
     } catch (error) {
       console.error('=== cancelTransaction Error ===')

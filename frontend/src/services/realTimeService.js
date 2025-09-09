@@ -1,7 +1,7 @@
 import { transactionService } from './transactionService'
 import { groupService } from './groupService'
 import { vehicleScheduleService } from './vehicleScheduleService'
-
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
 class RealTimeService {
   constructor() {
     this.pollingIntervals = new Map()
@@ -31,6 +31,13 @@ class RealTimeService {
 
   // Thông báo cho tất cả subscribers
   notify(dataType, data) {
+    console.log(`🔔 RealTimeService - Notifying ${dataType}:`, data)
+    console.log(`🔔 RealTimeService - Data type:`, typeof data)
+    console.log(`🔔 RealTimeService - Is array:`, Array.isArray(data))
+    if (data && typeof data === 'object') {
+      console.log(`🔔 RealTimeService - Object keys:`, Object.keys(data))
+    }
+    
     const callbacks = this.subscribers.get(dataType)
     if (callbacks) {
       callbacks.forEach(callback => {
@@ -126,7 +133,7 @@ class RealTimeService {
     // Polling cho notifications
     this.startPolling('notifications', async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/notifications', {
+        const response = await fetch(`${API_BASE_URL}/notifications`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'

@@ -22,7 +22,7 @@ const Notification = () => {
   const [loading, setLoading] = useState(false)
   const [processingId, setProcessingId] = useState(null)
   const [markingAllAsRead, setMarkingAllAsRead] = useState(false)
-
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
   // Không cần loadNotifications nữa vì dữ liệu sẽ được cập nhật tự động từ global state
   // Chỉ set loading false sau khi component mount
   useEffect(() => {
@@ -132,7 +132,7 @@ const Notification = () => {
     if (!notification.da_doc) {
       try {
         const token = localStorage.getItem('authToken')
-        const response = await fetch(`http://localhost:5000/api/notifications/${notification.id_thong_bao}/read`, {
+        const response = await fetch(`${API_BASE_URL}/notifications/${notification.id_thong_bao}/read`, {
           method: 'PUT',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -159,7 +159,7 @@ const Notification = () => {
     setMarkingAllAsRead(true)
     try {
       const token = localStorage.getItem('authToken')
-      const response = await fetch('http://localhost:5000/api/notifications/mark-all-read', {
+      const response = await fetch(`${API_BASE_URL}/notifications/mark-all-read`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -253,7 +253,7 @@ const Notification = () => {
 
         {/* Notification Dropdown */}
         {isOpen && (
-          <div className="absolute right-0 top-12 w-96 bg-white rounded-2xl shadow-2xl border border-gray-100 z-50">
+          <div className="absolute top-12 w-80 sm:w-96 bg-white rounded-2xl shadow-2xl border border-gray-100 z-50 max-w-[calc(100vw-2rem)] right-0 sm:right-0 lg:right-0 transform translate-x-0 sm:translate-x-0">
             {/* Header */}
             <div className="flex items-center justify-between p-4 border-b border-gray-100">
               <h3 className="text-lg font-semibold text-gray-800">Thông báo</h3>

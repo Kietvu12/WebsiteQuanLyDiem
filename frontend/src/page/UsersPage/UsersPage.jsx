@@ -41,7 +41,7 @@ const UsersPage = () => {
   })
   const [transactionType, setTransactionType] = useState('all')
   const [scheduleStatus, setScheduleStatus] = useState('all')
-
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
   // State cho API
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -50,6 +50,7 @@ const UsersPage = () => {
   
   // State cho modal
   const [showCreateModal, setShowCreateModal] = useState(false)
+  const [showCreateMultipleModal, setShowCreateMultipleModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [showExportReportModal, setShowExportReportModal] = useState(false)
   const [exportingUser, setExportingUser] = useState(null)
@@ -62,6 +63,9 @@ const UsersPage = () => {
     so_dien_thoai: '',
     dia_chi: ''
   })
+  const [multipleUsersText, setMultipleUsersText] = useState('')
+  const [parsedUsers, setParsedUsers] = useState([])
+  const [createMultipleResults, setCreateMultipleResults] = useState(null)
 
   // Fetch tất cả người dùng
   const fetchUsers = async () => {
@@ -71,7 +75,7 @@ const UsersPage = () => {
     setError(null)
     try {
       const token = localStorage.getItem('authToken')
-      const response = await fetch('http://localhost:5000/api/users', {
+      const response = await fetch(`${API_BASE_URL}/users`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -80,8 +84,23 @@ const UsersPage = () => {
       
       const data = await response.json()
       
+      console.log('Raw API response:', data)
+      
       if (response.ok && data.success) {
-        updateUsers(data.data || [])
+        // Backend trả về { data: { users: [...] } }
+        let usersData = []
+        if (data.data && data.data.users && Array.isArray(data.data.users)) {
+          usersData = data.data.users
+        } else if (data.users && Array.isArray(data.users)) {
+          usersData = data.users
+        } else if (Array.isArray(data.data)) {
+          usersData = data.data
+        } else {
+          usersData = []
+        }
+        
+        console.log('Users data to update:', usersData)
+        updateUsers(usersData)
       } else {
         setError(data.message || 'Không thể lấy danh sách người dùng')
       }
@@ -99,7 +118,7 @@ const UsersPage = () => {
     
     try {
       const token = localStorage.getItem('authToken')
-      const response = await fetch(`http://localhost:5000/api/users/${userId}/transactions`, {
+      const response = await fetch(`${API_BASE_URL}/users/${userId}/transactions`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -207,7 +226,7 @@ const UsersPage = () => {
     
     try {
       const token = localStorage.getItem('authToken')
-      const response = await fetch(`http://localhost:5000/api/users/${userId}/schedules`, {
+      const response = await fetch(`${API_BASE_URL}/users/${userId}/schedules`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -252,6 +271,71 @@ const UsersPage = () => {
     }
   }, [isAuthenticated])
 
+  // Parse danh sách người dùng từ text (chỉ lấy tên)
+  const parseUsersFromText = (text) => {
+    if (!text.trim()) return []
+    
+    const lines = text.split('\n').filter(line => line.trim())
+    const users = []
+    
+    lines.forEach((line, index) => {
+      const trimmedLine = line.trim()
+      if (trimmedLine) {
+        // Chỉ lấy tên từ dòng
+        const user = {
+          ho_ten: trimmedLine
+        }
+        
+        users.push(user)
+      }
+    })
+    
+    return users
+  }
+
+  // Xử lý thay đổi text nhập nhiều người dùng
+  const handleMultipleUsersTextChange = (text) => {
+    setMultipleUsersText(text)
+    const parsed = parseUsersFromText(text)
+    setParsedUsers(parsed)
+  }
+
+  // Tạo nhiều người dùng
+  const handleCreateMultipleUsers = async () => {
+    if (parsedUsers.length === 0) {
+      setError('Vui lòng nhập ít nhất một người dùng')
+      return
+    }
+    
+    setLoading(true)
+    try {
+      const token = localStorage.getItem('authToken')
+      const response = await fetch(`${API_BASE_URL}/users/multiple`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ users: parsedUsers })
+      })
+      
+      const data = await response.json()
+      
+      if (response.ok && data.success) {
+        setCreateMultipleResults(data.data)
+        fetchUsers()
+        setError(null)
+      } else {
+        setError(data.message || 'Không thể tạo người dùng')
+      }
+    } catch (error) {
+      console.error('Error creating multiple users:', error)
+      setError('Có lỗi xảy ra khi tạo người dùng')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   // Tạo người dùng mới
   const handleCreateUser = async () => {
     // Validation
@@ -267,11 +351,7 @@ const UsersPage = () => {
       setError('Mật khẩu phải có ít nhất 6 ký tự')
       return
     }
-    if (!newUserData.email.trim()) {
-      setError('Email không được để trống')
-      return
-    }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newUserData.email)) {
+    if (newUserData.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newUserData.email)) {
       setError('Email không đúng định dạng')
       return
     }
@@ -283,7 +363,7 @@ const UsersPage = () => {
     setLoading(true)
     try {
       const token = localStorage.getItem('authToken')
-      const response = await fetch('http://localhost:5000/api/users', {
+      const response = await fetch(`${API_BASE_URL}/users`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -321,10 +401,18 @@ const UsersPage = () => {
 
   // Sửa thông tin người dùng
   const handleEditUser = async (userId) => {
-    const user = users.find(u => u.id_nguoi_dung === userId)
-    if (user) {
-      setEditingUser(user)
-      setShowEditModal(true)
+    try {
+      if (Array.isArray(users) && users.length > 0) {
+        const user = users.find(u => u.id_nguoi_dung === userId)
+        if (user) {
+          setEditingUser(user)
+          setShowEditModal(true)
+        }
+      } else {
+        console.warn('Users array is not available or empty')
+      }
+    } catch (error) {
+      console.error('Error finding user:', error)
     }
   }
 
@@ -341,7 +429,7 @@ const UsersPage = () => {
     setLoading(true)
     try {
       const token = localStorage.getItem('authToken')
-      const response = await fetch(`http://localhost:5000/api/users/${editingUser.id_nguoi_dung}`, {
+      const response = await fetch(`${API_BASE_URL}/users/${editingUser.id_nguoi_dung}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -379,7 +467,7 @@ const UsersPage = () => {
     setLoading(true)
     try {
       const token = localStorage.getItem('authToken')
-      const response = await fetch(`http://localhost:5000/api/users/${userId}`, {
+      const response = await fetch(`${API_BASE_URL}/users/${userId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -463,6 +551,17 @@ const UsersPage = () => {
 
   // Lọc và sắp xếp người dùng
   const getFilteredAndSortedUsers = () => {
+    // Debug logging
+    console.log('Current users state:', users)
+    console.log('Users type:', typeof users)
+    console.log('Is users array?', Array.isArray(users))
+    
+    // Đảm bảo users là array
+    if (!Array.isArray(users)) {
+      console.warn('Users is not an array:', users)
+      return []
+    }
+    
     let filteredUsers = users
 
     // Lọc theo tìm kiếm
@@ -573,13 +672,22 @@ const UsersPage = () => {
                 <SearchOutlined className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm" />
               </div>
             </div>
-            <button
-              onClick={() => setShowCreateModal(true)}
-              className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl font-medium hover:from-blue-600 hover:to-purple-700 transition-all duration-200 shadow-sm"
-            >
-              <PlusOutlined className="text-sm" />
-              <span>Thêm người dùng mới</span>
-            </button>
+            <div className="flex items-center space-x-3">
+              <button
+                onClick={() => setShowCreateModal(true)}
+                className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl font-medium hover:from-blue-600 hover:to-purple-700 transition-all duration-200 shadow-sm"
+              >
+                <PlusOutlined className="text-sm" />
+                <span>Thêm người dùng mới</span>
+              </button>
+              <button
+                onClick={() => setShowCreateMultipleModal(true)}
+                className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-green-500 to-teal-600 text-white rounded-xl font-medium hover:from-green-600 hover:to-teal-700 transition-all duration-200 shadow-sm"
+              >
+                <TeamOutlined className="text-sm" />
+                <span>Thêm nhiều người dùng</span>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -818,13 +926,13 @@ const UsersPage = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Email *</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
                   <input
                     type="email"
                     value={newUserData.email}
                     onChange={(e) => setNewUserData(prev => ({ ...prev, email: e.target.value }))}
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Nhập email"
+                    placeholder="Nhập email (tùy chọn)"
                   />
                 </div>
                 <div>
@@ -875,6 +983,156 @@ const UsersPage = () => {
                   className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50"
                 >
                   {loading ? <LoadingOutlined /> : 'Tạo người dùng'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Create Multiple Users Modal */}
+        {showCreateMultipleModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-2xl p-6 w-full max-w-4xl max-h-[90vh] overflow-hidden">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">Tạo nhiều người dùng cùng lúc</h3>
+              
+              <div className="space-y-4">
+                <div className="bg-blue-50 p-4 rounded-lg">
+                  <h4 className="font-medium text-blue-800 mb-2">Hướng dẫn sử dụng:</h4>
+                  <ul className="text-sm text-blue-700 space-y-1">
+                    <li>• Mỗi dòng là một người dùng</li>
+                    <li>• Chỉ cần nhập họ tên</li>
+                    <li>• Tài khoản sẽ được tạo tự động từ 4 chữ cái cuối của tên + số ngẫu nhiên</li>
+                    <li>• Mật khẩu mặc định: 123456@user</li>
+                    <li>• Ví dụ: "Nguyễn Văn An"</li>
+                  </ul>
+                </div>
+                
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Nhập danh sách người dùng:</label>
+                    <textarea
+                      value={multipleUsersText}
+                      onChange={(e) => handleMultipleUsersTextChange(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent h-64"
+                      placeholder="Nguyễn Văn An&#10;Trần Thị Bình&#10;Lê Minh Cường&#10;Phạm Thị Hoa&#10;Hoàng Văn Nam"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Xem trước ({parsedUsers.length} người dùng):</label>
+                    <div className="border border-gray-200 rounded-lg h-64 overflow-y-auto p-3 bg-gray-50">
+                      {parsedUsers.length > 0 ? (
+                        <div className="space-y-2">
+                          {parsedUsers.map((user, index) => (
+                            <div key={index} className="p-2 bg-white rounded border text-sm">
+                              <div className="font-medium text-gray-800">{user.ho_ten}</div>
+                              <div className="text-gray-500 text-xs mt-1">
+                                Tài khoản sẽ được tạo tự động
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-gray-500 text-center py-8">
+                          <TeamOutlined className="text-4xl mb-2 text-gray-300 mx-auto block" />
+                          <p>Chưa có dữ liệu để xem trước</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex space-x-3 mt-6">
+                <button
+                  onClick={() => {
+                    setShowCreateMultipleModal(false)
+                    setMultipleUsersText('')
+                    setParsedUsers([])
+                    setCreateMultipleResults(null)
+                    setError(null)
+                  }}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Hủy
+                </button>
+                <button
+                  onClick={handleCreateMultipleUsers}
+                  disabled={loading || parsedUsers.length === 0}
+                  className="flex-1 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors disabled:opacity-50"
+                >
+                  {loading ? <LoadingOutlined /> : `Tạo ${parsedUsers.length} người dùng`}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Create Multiple Users Results Modal */}
+        {createMultipleResults && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-2xl p-6 w-full max-w-4xl max-h-[90vh] overflow-hidden">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">Kết quả tạo người dùng</h3>
+              
+              <div className="mb-4 p-4 bg-gray-50 rounded-lg">
+                <div className="grid grid-cols-3 gap-4 text-center">
+                  <div>
+                    <div className="text-2xl font-bold text-gray-800">{createMultipleResults.summary.total}</div>
+                    <div className="text-sm text-gray-600">Tổng số</div>
+                  </div>
+                  <div>
+                    <div className="text-2xl font-bold text-green-600">{createMultipleResults.summary.success}</div>
+                    <div className="text-sm text-gray-600">Thành công</div>
+                  </div>
+                  <div>
+                    <div className="text-2xl font-bold text-red-600">{createMultipleResults.summary.errors}</div>
+                    <div className="text-sm text-gray-600">Lỗi</div>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 max-h-96 overflow-y-auto">
+                {createMultipleResults.success.length > 0 && (
+                  <div>
+                    <h4 className="font-medium text-green-700 mb-2">✅ Thành công ({createMultipleResults.success.length}):</h4>
+                    <div className="space-y-2">
+                      {createMultipleResults.success.map((result, index) => (
+                        <div key={index} className="p-2 bg-green-50 rounded border text-sm">
+                          <div className="font-medium text-green-800">{result.ho_ten}</div>
+                          <div className="text-green-600">Tài khoản: {result.ten_dang_nhap}</div>
+                          <div className="text-green-600">ID: {result.id}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                {createMultipleResults.errors.length > 0 && (
+                  <div>
+                    <h4 className="font-medium text-red-700 mb-2">❌ Lỗi ({createMultipleResults.errors.length}):</h4>
+                    <div className="space-y-2">
+                      {createMultipleResults.errors.map((error, index) => (
+                        <div key={index} className="p-2 bg-red-50 rounded border text-sm">
+                          <div className="font-medium text-red-800">{error.ho_ten}</div>
+                          <div className="text-red-600">{error.error}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+              
+              <div className="flex justify-end mt-6">
+                <button
+                  onClick={() => {
+                    setCreateMultipleResults(null)
+                    setShowCreateMultipleModal(false)
+                    setMultipleUsersText('')
+                    setParsedUsers([])
+                  }}
+                  className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                >
+                  Đóng
                 </button>
               </div>
             </div>

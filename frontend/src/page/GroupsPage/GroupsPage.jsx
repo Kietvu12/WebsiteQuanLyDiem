@@ -26,7 +26,9 @@ const GroupsPage = () => {
   const [groupTransactions, setGroupTransactions] = useState({})
   const [groupSchedules, setGroupSchedules] = useState({})
   const [availableUsers, setAvailableUsers] = useState([])
-  
+  const [filteredAvailableUsers, setFilteredAvailableUsers] = useState([])
+  const [isUserAdmin, setIsUserAdmin] = useState(false)
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
   // State cho modal
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
@@ -95,8 +97,39 @@ const GroupsPage = () => {
     try {
       const token = localStorage.getItem('authToken')
       
-      // Thử lấy danh sách người dùng cơ bản trước (cho tất cả user)
-      let response = await fetch('http://localhost:5000/api/users/basic-list', {
+      // Nếu không phải admin, thử lấy danh sách tất cả người dùng (có thể bị từ chối)
+      if (!isUserAdmin) {
+        try {
+          const response = await fetch(`${API_BASE_URL}/users`, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            }
+          })
+          
+          if (response.ok) {
+            const data = await response.json()
+            if (data.success) {
+              setAvailableUsers(data.data.users || [])
+              return
+            }
+          }
+        } catch (error) {
+          console.log('Không thể lấy danh sách tất cả người dùng, sử dụng danh sách nhóm hiện tại')
+        }
+        
+        // Fallback: sử dụng danh sách từ nhóm hiện tại
+        if (selectedGroup) {
+          const currentGroupMembers = groupMembers[selectedGroup.id_nhom] || []
+          setAvailableUsers(currentGroupMembers)
+        } else {
+          setAvailableUsers([])
+        }
+        return
+      }
+      
+      // Nếu là admin, lấy danh sách tất cả người dùng
+      const response = await fetch(`${API_BASE_URL}/users`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -107,33 +140,12 @@ const GroupsPage = () => {
         const data = await response.json()
         if (data.success) {
           setAvailableUsers(data.data.users || [])
-          return
-        }
-      }
-      
-      // Nếu không được, thử lấy danh sách đầy đủ (chỉ admin)
-      response = await fetch('http://localhost:5000/api/users', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        }
-      })
-      
-      const data = await response.json()
-      
-      if (response.ok && data.success) {
-        setAvailableUsers(data.data.users || [])
-      } else if (response.status === 403) {
-        // Nếu không phải admin, lấy danh sách người dùng từ nhóm hiện tại
-        console.log('User không phải admin, lấy danh sách từ nhóm hiện tại')
-        if (selectedGroup) {
-          const groupMembers = groupMembers[selectedGroup.id_nhom] || []
-          setAvailableUsers(groupMembers)
         } else {
+          console.error('Error response:', data)
           setAvailableUsers([])
         }
       } else {
-        console.error('Error response:', data)
+        console.error('HTTP Error:', response.status)
         setAvailableUsers([])
       }
     } catch (error) {
@@ -212,7 +224,7 @@ const GroupsPage = () => {
     setLoading(true)
     try {
       const token = localStorage.getItem('authToken')
-      const response = await fetch('http://localhost:5000/api/groups', {
+      const response = await fetch(`${API_BASE_URL}/groups`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -262,7 +274,7 @@ const GroupsPage = () => {
     setLoading(true)
     try {
       const token = localStorage.getItem('authToken')
-      const response = await fetch(`http://localhost:5000/api/groups/${groupId}/delete`, {
+      const response = await fetch(`${API_BASE_URL}/groups/${groupId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -302,7 +314,7 @@ const GroupsPage = () => {
     setLoading(true)
     try {
       const token = localStorage.getItem('authToken')
-      const response = await fetch('http://localhost:5000/api/groups/add-member', {
+      const response = await fetch(`${API_BASE_URL}/groups/add-member`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -334,7 +346,7 @@ const GroupsPage = () => {
     setLoading(true)
     try {
       const token = localStorage.getItem('authToken')
-      const response = await fetch('http://localhost:5000/api/groups/add-member', {
+      const response = await fetch(`${API_BASE_URL}/groups/add-member`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -362,6 +374,41 @@ const GroupsPage = () => {
     }
   }
 
+  // Xóa thành viên khỏi nhóm
+  const handleRemoveMember = async (groupId, userId) => {
+    if (!window.confirm('Bạn có chắc chắn muốn xóa thành viên này khỏi nhóm?')) return
+    
+    setLoading(true)
+    try {
+      const token = localStorage.getItem('authToken')
+      const response = await fetch(`${API_BASE_URL}/groups/remove-member`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          groupId,
+          userId
+        })
+      })
+      
+      const data = await response.json()
+      
+      if (response.ok && data.success) {
+        fetchGroupMembers(groupId) // Refresh thành viên
+        setError(null)
+      } else {
+        setError(data.message || 'Không thể xóa thành viên')
+      }
+    } catch (error) {
+      console.error('Error removing member:', error)
+      setError('Có lỗi xảy ra khi xóa thành viên')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   // Cập nhật nhóm
   const handleEditGroup = async () => {
     if (!editingGroup || !editingGroup.ten_nhom.trim()) {
@@ -372,7 +419,7 @@ const GroupsPage = () => {
     setLoading(true)
     try {
       const token = localStorage.getItem('authToken')
-      const response = await fetch(`http://localhost:5000/api/groups/${editingGroup.id_nhom}`, {
+        const response = await fetch(`${API_BASE_URL}/groups/${editingGroup.id_nhom}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -628,8 +675,50 @@ const GroupsPage = () => {
       // Dữ liệu sẽ được load tự động từ real-time service
       // Chỉ cần set loading false
       setLoading(false)
+      // Kiểm tra quyền admin
+      setIsUserAdmin(user?.la_admin === 1 || user?.la_admin === true)
     }
-  }, [isAuthenticated])
+  }, [isAuthenticated, user])
+
+  // Load danh sách người dùng khi quyền admin thay đổi hoặc khi cần thiết
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchAvailableUsers()
+    }
+  }, [isAuthenticated, isUserAdmin])
+
+  // Load danh sách người dùng khi component mount để có thể tạo nhóm mới
+  useEffect(() => {
+    if (isAuthenticated && (!Array.isArray(availableUsers) || availableUsers.length === 0)) {
+      fetchAvailableUsers()
+    }
+  }, [isAuthenticated, availableUsers])
+
+  // Load danh sách người dùng khi mở modal tạo nhóm mới
+  useEffect(() => {
+    if (showCreateModal && (!Array.isArray(availableUsers) || availableUsers.length === 0)) {
+      fetchAvailableUsers()
+    }
+  }, [showCreateModal, availableUsers])
+
+  // Load danh sách người dùng khi mở modal edit nhóm
+  useEffect(() => {
+    if (showEditModal && editingGroup) {
+      // Luôn load lại danh sách người dùng khi mở modal edit
+      fetchAvailableUsers()
+      // Đảm bảo thành viên của nhóm đang edit được load
+      if (!groupMembers[editingGroup.id_nhom]) {
+        fetchGroupMembers(editingGroup.id_nhom)
+      }
+    }
+  }, [showEditModal, editingGroup])
+
+  // Load danh sách người dùng khi mở modal thêm thành viên
+  useEffect(() => {
+    if (showAddMemberModal && (!Array.isArray(availableUsers) || availableUsers.length === 0)) {
+      fetchAvailableUsers()
+    }
+  }, [showAddMemberModal, availableUsers])
 
   // Load dữ liệu chi tiết cho tất cả nhóm sau khi có danh sách nhóm
   useEffect(() => {
@@ -646,9 +735,24 @@ const GroupsPage = () => {
   // Load danh sách người dùng khi có nhóm được chọn
   useEffect(() => {
     if (selectedGroup) {
+      // Nếu đã có thành viên của nhóm, sử dụng để làm danh sách có sẵn
+      const currentMembers = groupMembers[selectedGroup.id_nhom] || []
+      if (currentMembers.length > 0) {
+        setAvailableUsers(currentMembers)
+      } else {
+        // Nếu chưa có, fetch từ API
+        fetchAvailableUsers()
+      }
+    } else {
+      // Khi không có nhóm nào được chọn, vẫn cần danh sách người dùng để tạo nhóm mới
       fetchAvailableUsers()
     }
-  }, [selectedGroup])
+  }, [selectedGroup, groupMembers])
+
+  // Khởi tạo filteredAvailableUsers khi availableUsers thay đổi
+  useEffect(() => {
+    setFilteredAvailableUsers(availableUsers)
+  }, [availableUsers])
 
   if (!isAuthenticated) {
     return (
@@ -684,9 +788,10 @@ const GroupsPage = () => {
         )}
         
         {/* Search and Create Section */}
-        <div className="bg-white mb-6 rounded-2xl shadow-sm border border-gray-100 p-6">
-          <div className="flex items-center justify-between">
-            <div className="flex-1 max-w-xl">
+        <div className="bg-white mb-6 rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 sm:gap-6">
+            {/* Search Input */}
+            <div className="flex-1 min-w-0">
               <div className="relative">
                 <input
                   type="text"
@@ -698,26 +803,28 @@ const GroupsPage = () => {
                 <SearchOutlined className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm" />
               </div>
             </div>
+            
+            {/* Create Button */}
             <button
               onClick={() => setShowCreateModal(true)}
-              className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl font-medium hover:from-blue-600 hover:to-purple-700 transition-all duration-200 shadow-sm"
+              className="w-full sm:w-auto flex items-center justify-center space-x-2 px-4 sm:px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl font-medium hover:from-blue-600 hover:to-purple-700 transition-all duration-200 shadow-sm"
             >
               <PlusOutlined className="text-sm" />
-              <span>Tạo nhóm mới</span>
+              <span className="whitespace-nowrap">Tạo nhóm mới</span>
             </button>
           </div>
         </div>
 
         {/* Groups Table */}
         <div className="bg-white mb-6 rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="p-6 border-b border-gray-100">
-            <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-gray-800">Bảng các nhóm</h3>
+          <div className="p-4 sm:p-6 border-b border-gray-100">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <h3 className="text-lg font-semibold text-gray-800">Bảng các nhóm</h3>
               {loading && (
                 <div className="flex items-center text-sm text-blue-600">
                   <LoadingOutlined className="mr-2" />
                   <span>Đang tải dữ liệu chi tiết...</span>
-          </div>
+                </div>
               )}
             </div>
           </div>
@@ -810,6 +917,10 @@ const GroupsPage = () => {
                                 if (!groupMembers[group.id_nhom]) {
                                   fetchGroupMembers(group.id_nhom)
                                 }
+                                // Đảm bảo danh sách người dùng có sẵn
+                                if (availableUsers.length === 0) {
+                                  fetchAvailableUsers()
+                                }
                               }}
                               className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
                               title="Sửa thông tin"
@@ -870,6 +981,10 @@ const GroupsPage = () => {
                                 if (!groupMembers[group.id_nhom]) {
                                   fetchGroupMembers(group.id_nhom)
                                 }
+                                // Đảm bảo danh sách người dùng có sẵn
+                                if (availableUsers.length === 0) {
+                                  fetchAvailableUsers()
+                                }
                               }}
                               className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
                               title="Sửa thông tin"
@@ -919,16 +1034,16 @@ const GroupsPage = () => {
         {/* Members Table - Drill-down */}
         {selectedGroup && (
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="p-6 border-b border-gray-100">
-              <div className="flex items-center justify-between">
+            <div className="p-4 sm:p-6 border-b border-gray-100">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
-              <h3 className="text-lg font-semibold text-gray-800">
+                  <h3 className="text-lg font-semibold text-gray-800">
                     Danh sách thành viên nhóm: {selectedGroup.ten_nhom}
-              </h3>
+                  </h3>
                   {!groupMembers[selectedGroup.id_nhom] && (
                     <p className="text-sm text-gray-500 mt-1">Đang tải danh sách thành viên...</p>
                   )}
-            </div>
+                </div>
               </div>
             </div>
             
@@ -990,7 +1105,7 @@ const GroupsPage = () => {
                         <button
                           onClick={(e) => {
                             e.stopPropagation()
-                                // handleRemoveMember(selectedGroup.id_nhom, member.id_nguoi_dung)
+                            handleRemoveMember(selectedGroup.id_nhom, member.id_nguoi_dung)
                           }}
                           className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                           title="Xóa khỏi nhóm"
@@ -1061,8 +1176,8 @@ const GroupsPage = () => {
 
         {/* Create Group Modal */}
         {showCreateModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-2xl p-6 w-full max-w-lg">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl p-4 sm:p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
               <h3 className="text-lg font-semibold text-gray-800 mb-4">Tạo nhóm mới</h3>
               <div className="space-y-4">
                 <div>
@@ -1087,39 +1202,84 @@ const GroupsPage = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Thêm thành viên (không bắt buộc)</label>
-                  <div className="max-h-40 overflow-y-auto border border-gray-200 rounded-lg p-2">
-                    {availableUsers.length === 0 ? (
+                  <div className="relative">
+                    <input
+                      type="text"
+                      placeholder="Tìm kiếm người dùng..."
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      onChange={(e) => {
+                        const searchTerm = e.target.value.toLowerCase()
+                        if (searchTerm) {
+                                                  const filtered = Array.isArray(availableUsers) ? availableUsers.filter(user =>
+                          user.ho_ten.toLowerCase().includes(searchTerm) || 
+                          user.ten_dang_nhap.toLowerCase().includes(searchTerm)
+                        ) : []
+                          setFilteredAvailableUsers(filtered)
+                        } else {
+                          setFilteredAvailableUsers(availableUsers)
+                        }
+                      }}
+                    />
+                    <div className="max-h-40 overflow-y-auto border border-gray-200 rounded-lg mt-2 bg-white">
+                                          {(!Array.isArray(availableUsers) || availableUsers.length === 0) ? (
                       <div className="text-center py-4">
                         <p className="text-gray-500 text-sm">
                           Đang tải danh sách người dùng...
                         </p>
                       </div>
                     ) : (
-                      availableUsers.map(user => (
-                        <label key={user.id_nguoi_dung} className="flex items-center space-x-2 p-2 hover:bg-gray-50 rounded">
-                          <input
-                            type="checkbox"
-                            checked={newGroupData.memberIds.includes(user.id_nguoi_dung)}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setNewGroupData(prev => ({
-                                  ...prev,
-                                  memberIds: [...prev.memberIds, user.id_nguoi_dung]
-                                }))
-                              } else {
-                                setNewGroupData(prev => ({
-                                  ...prev,
-                                  memberIds: prev.memberIds.filter(id => id !== user.id_nguoi_dung)
-                                }))
-                              }
-                            }}
-                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                          />
-                          <span className="text-sm text-gray-700">{user.ho_ten} ({user.ten_dang_nhap})</span>
-                        </label>
-                      ))
-                    )}
+                      (filteredAvailableUsers || availableUsers).map(user => (
+                          <label key={user.id_nguoi_dung} className="flex items-center space-x-2 p-2 hover:bg-gray-50 rounded cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={newGroupData.memberIds.includes(user.id_nguoi_dung)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setNewGroupData(prev => ({
+                                    ...prev,
+                                    memberIds: [...prev.memberIds, user.id_nguoi_dung]
+                                  }))
+                                } else {
+                                  setNewGroupData(prev => ({
+                                    ...prev,
+                                    memberIds: prev.memberIds.filter(id => id !== user.id_nguoi_dung)
+                                  }))
+                                }
+                              }}
+                              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                            />
+                            <span className="text-sm text-gray-700">{user.ho_ten} ({user.ten_dang_nhap})</span>
+                          </label>
+                        ))
+                      )}
+                    </div>
                   </div>
+                  {/* Hiển thị thành viên đã chọn */}
+                  {newGroupData.memberIds.length > 0 && (
+                    <div className="mt-3">
+                      <p className="text-sm font-medium text-gray-700 mb-2">Thành viên đã chọn:</p>
+                      <div className="flex flex-wrap gap-2">
+                        {newGroupData.memberIds.map(userId => {
+                          const user = Array.isArray(availableUsers) ? availableUsers.find(u => u.id_nguoi_dung === userId) : null
+                          return user ? (
+                            <span key={userId} className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                              {user.ho_ten}
+                              <button
+                                type="button"
+                                onClick={() => setNewGroupData(prev => ({
+                                  ...prev,
+                                  memberIds: prev.memberIds.filter(id => id !== userId)
+                                }))}
+                                className="ml-2 text-blue-600 hover:text-blue-800"
+                              >
+                                ×
+                              </button>
+                            </span>
+                          ) : null
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="flex space-x-3 mt-6">
@@ -1143,8 +1303,8 @@ const GroupsPage = () => {
 
         {/* Edit Group Modal */}
         {showEditModal && editingGroup && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-2xl p-6 w-full max-w-lg">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl p-4 sm:p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
               <h3 className="text-lg font-semibold text-gray-800 mb-4">Sửa thông tin nhóm</h3>
               <div className="space-y-4">
                   <div>
@@ -1187,34 +1347,59 @@ const GroupsPage = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Thêm thành viên mới</label>
-                  <div className="max-h-32 overflow-y-auto border border-gray-200 rounded-lg p-2">
-                    {availableUsers.length === 0 ? (
+                  <div className="relative">
+                    <input
+                      type="text"
+                      placeholder="Tìm kiếm người dùng để thêm..."
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      onChange={(e) => {
+                        const searchTerm = e.target.value.toLowerCase()
+                        if (searchTerm) {
+                          const filtered = availableUsers
+                            .filter(user => !(groupMembers[editingGroup.id_nhom] || [])
+                              .some(member => member.id_nguoi_dung === user.id_nguoi_dung))
+                            .filter(user => 
+                              user.ho_ten.toLowerCase().includes(searchTerm) || 
+                              user.ten_dang_nhap.toLowerCase().includes(searchTerm)
+                            )
+                          setFilteredAvailableUsers(filtered)
+                        } else {
+                          setFilteredAvailableUsers(availableUsers
+                            .filter(user => !(groupMembers[editingGroup.id_nhom] || [])
+                              .some(member => member.id_nguoi_dung === user.id_nguoi_dung))
+                          )
+                        }
+                      }}
+                    />
+                    <div className="max-h-32 overflow-y-auto border border-gray-200 rounded-lg mt-2 bg-white">
+                                          {(!Array.isArray(availableUsers) || availableUsers.length === 0) ? (
                       <div className="text-center py-4">
                         <p className="text-gray-500 text-sm">
                           Đang tải danh sách người dùng...
                         </p>
                       </div>
                     ) : (
-                      availableUsers
+                      (filteredAvailableUsers || availableUsers)
                         .filter(user => !(groupMembers[editingGroup.id_nhom] || [])
                           .some(member => member.id_nguoi_dung === user.id_nguoi_dung))
                         .map(user => (
-                          <label key={user.id_nguoi_dung} className="flex items-center space-x-2 p-2 hover:bg-gray-50 rounded">
-                        <input
-                              type="checkbox"
-                              onChange={(e) => {
-                                if (e.target.checked) {
-                                  // Thêm thành viên mới vào nhóm
-                                  handleAddMemberToExistingGroup(editingGroup.id_nhom, user.id_nguoi_dung)
-                                }
-                              }}
-                              className="rounded border-gray-500 text-blue-600 focus:ring-blue-500"
-                            />
-                            <span className="text-sm text-gray-700">{user.ho_ten} ({user.ten_dang_nhap})</span>
-                          </label>
-                        ))
-                    )}
-                      </div>
+                            <label key={user.id_nguoi_dung} className="flex items-center space-x-2 p-2 hover:bg-gray-50 rounded cursor-pointer">
+                              <input
+                                type="checkbox"
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    // Thêm thành viên mới vào nhóm
+                                    handleAddMemberToExistingGroup(editingGroup.id_nhom, user.id_nguoi_dung)
+                                  }
+                                }}
+                                className="rounded border-gray-500 text-blue-600 focus:ring-blue-500"
+                              />
+                              <span className="text-sm text-gray-700">{user.ho_ten} ({user.ten_dang_nhap})</span>
+                            </label>
+                          ))
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
               <div className="flex space-x-3 mt-6">
@@ -1238,44 +1423,69 @@ const GroupsPage = () => {
 
         {/* Add Member Modal */}
         {showAddMemberModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-2xl p-6 w-full max-w-lg">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl p-4 sm:p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
               <h3 className="text-lg font-semibold text-gray-800 mb-4">Thêm thành viên vào nhóm</h3>
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Chọn người dùng để thêm</label>
-                  <div className="max-h-60 overflow-y-auto border border-gray-200 rounded-lg p-2">
-                    {availableUsers.length === 0 ? (
+                  <div className="relative">
+                    <input
+                      type="text"
+                      placeholder="Tìm kiếm người dùng..."
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      onChange={(e) => {
+                        const searchTerm = e.target.value.toLowerCase()
+                        if (searchTerm) {
+                          const filtered = availableUsers
+                            .filter(user => !(groupMembers[newMemberData.groupId] || [])
+                              .some(member => member.id_nguoi_dung === user.id_nguoi_dung))
+                            .filter(user => 
+                              user.ho_ten.toLowerCase().includes(searchTerm) || 
+                              user.ten_dang_nhap.toLowerCase().includes(searchTerm)
+                            )
+                          setFilteredAvailableUsers(filtered)
+                        } else {
+                          setFilteredAvailableUsers(availableUsers
+                            .filter(user => !(groupMembers[newMemberData.groupId] || [])
+                              .some(member => member.id_nguoi_dung === user.id_nguoi_dung))
+                          )
+                        }
+                      }}
+                    />
+                    <div className="max-h-60 overflow-y-auto border border-gray-200 rounded-lg mt-2 bg-white">
+                                          {(!Array.isArray(availableUsers) || availableUsers.length === 0) ? (
                       <div className="text-center py-4">
                         <p className="text-gray-500 text-sm">
                           Đang tải danh sách người dùng...
                         </p>
                       </div>
                     ) : (
-                      availableUsers
+                      (filteredAvailableUsers || availableUsers)
                         .filter(user => !(groupMembers[newMemberData.groupId] || [])
                           .some(member => member.id_nguoi_dung === user.id_nguoi_dung))
                         .map(user => (
-                          <label key={user.id_nguoi_dung} className="flex items-center space-x-2 p-2 hover:bg-gray-50 rounded">
-                            <input
-                              type="checkbox"
-                              checked={newMemberData.userId === user.id_nguoi_dung}
-                              onChange={(e) => {
-                                if (e.target.checked) {
-                                  setNewMemberData(prev => ({ ...prev, userId: user.id_nguoi_dung }))
-                                } else {
-                                  setNewMemberData(prev => ({ ...prev, userId: '' }))
-                                }
-                              }}
-                              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                            />
-                            <span className="text-xs text-gray-700">{user.ho_ten} ({user.ten_dang_nhap})</span>
-                          </label>
-                        ))
-                    )}
-                              </div>
-                                </div>
-                              </div>
+                            <label key={user.id_nguoi_dung} className="flex items-center space-x-2 p-2 hover:bg-gray-50 rounded cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={newMemberData.userId === user.id_nguoi_dung}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setNewMemberData(prev => ({ ...prev, userId: user.id_nguoi_dung }))
+                                  } else {
+                                    setNewMemberData(prev => ({ ...prev, userId: '' }))
+                                  }
+                                }}
+                                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                              />
+                              <span className="text-sm text-gray-700">{user.ho_ten} ({user.ten_dang_nhap})</span>
+                            </label>
+                          ))
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
               <div className="flex space-x-3 mt-6">
                 <button
                   onClick={() => setShowAddMemberModal(false)}
@@ -1290,15 +1500,15 @@ const GroupsPage = () => {
                 >
                   {loading ? <LoadingOutlined /> : 'Thêm thành viên'}
                 </button>
-                            </div>
-                          </div>
+              </div>
+            </div>
           </div>
         )}
 
         {/* User Detail Modal */}
         {showUserDetailModal && selectedUserDetail && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-2xl p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl p-4 sm:p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-xl font-semibold text-gray-800">
                   Chi tiết thành viên: {selectedUserDetail.ho_ten}
@@ -1313,9 +1523,9 @@ const GroupsPage = () => {
 
               {/* Filters - Hiển thị theo tab */}
               {activeTab === 'transactions' && (
-                <div className="bg-gray-50 p-4 rounded-lg mb-6">
+                <div className="bg-gray-50 p-3 sm:p-4 rounded-lg mb-6">
                   <h4 className="text-sm font-medium text-gray-700 mb-3">Bộ lọc giao dịch</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Tìm kiếm</label>
                       <input
@@ -1377,9 +1587,9 @@ const GroupsPage = () => {
                 )}
 
                 {activeTab === 'schedules' && (
-                <div className="bg-gray-50 p-4 rounded-lg mb-6">
+                <div className="bg-gray-50 p-3 sm:p-4 rounded-lg mb-6">
                   <h4 className="text-sm font-medium text-gray-700 mb-3">Bộ lọc lịch xe</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4">
                   <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Tìm kiếm</label>
                       <input
@@ -1461,10 +1671,10 @@ const GroupsPage = () => {
 
               {/* Tabs */}
               <div className="border-b border-gray-200 mb-6">
-                <div className="flex space-x-8">
+                <div className="flex flex-col sm:flex-row sm:space-x-8 space-y-2 sm:space-y-0">
                   <button
                     onClick={() => setActiveTab('transactions')}
-                    className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
+                    className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors text-center sm:text-left ${
                       activeTab === 'transactions'
                         ? 'border-blue-500 text-blue-600'
                         : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -1474,7 +1684,7 @@ const GroupsPage = () => {
                   </button>
                   <button
                     onClick={() => setActiveTab('schedules')}
-                    className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
+                    className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors text-center sm:text-left ${
                       activeTab === 'schedules'
                         ? 'border-blue-500 text-blue-600'
                         : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -1586,8 +1796,8 @@ const GroupsPage = () => {
 
         {/* Export Report Modal */}
         {showExportReportModal && exportingGroup && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-2xl p-6 w-full max-w-lg">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl p-4 sm:p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
               <h3 className="text-lg font-semibold text-gray-800 mb-4">
                 Xuất báo cáo nhóm: {exportingGroup.ten_nhom}
               </h3>

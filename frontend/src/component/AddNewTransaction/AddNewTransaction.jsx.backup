@@ -46,8 +46,6 @@ const AddNewTransaction = () => {
     thoi_gian_ket_thuc_tra: ''
   })
 
-  const [showScheduleForm, setShowScheduleForm] = useState(false)
-
   // Point calculation state
   const [pointCalculation, setPointCalculation] = useState({
     calculatedPoints: null,
@@ -55,6 +53,9 @@ const AddNewTransaction = () => {
     calculationStatus: 'idle', // 'idle', 'calculating', 'calculated', 'error'
     errorMessage: ''
   })
+
+  // Schedule form visibility state
+  const [showScheduleForm, setShowScheduleForm] = useState(false)
 
 
 
@@ -101,17 +102,10 @@ const AddNewTransaction = () => {
 
   // Auto-calculate points when vehicle schedule data changes (for Giao lịch)
   useEffect(() => {
-    if (formData.id_loai_giao_dich === 1 && showScheduleForm && formData.so_tien && scheduleData.id_loai_xe && scheduleData.id_loai_tuyen) {
+    if (formData.id_loai_giao_dich === 1 && formData.so_tien && scheduleData.id_loai_xe && scheduleData.id_loai_tuyen) {
       calculatePointsForSchedule()
-    } else if (formData.id_loai_giao_dich === 1 && !showScheduleForm) {
-      // Không có dữ liệu lịch xe chi tiết - reset point calculation
-      setPointCalculation({
-        calculatedPoints: null,
-        calculationDetails: null,
-        calculationStatus: 'idle'
-      })
     }
-  }, [formData.so_tien, showScheduleForm, scheduleData.id_loai_xe, scheduleData.id_loai_tuyen, scheduleData.thoi_gian_bat_dau_don, scheduleData.thoi_gian_ket_thuc_don, scheduleData.thoi_gian_bat_dau_tra, scheduleData.thoi_gian_ket_thuc_tra])
+  }, [formData.so_tien, scheduleData.id_loai_xe, scheduleData.id_loai_tuyen, scheduleData.thoi_gian_bat_dau_don, scheduleData.thoi_gian_ket_thuc_don, scheduleData.thoi_gian_bat_dau_tra, scheduleData.thoi_gian_ket_thuc_tra])
 
   // Clear point calculation when modal is closed
   useEffect(() => {
@@ -295,7 +289,7 @@ const AddNewTransaction = () => {
         throw new Error('Bạn không thể tạo giao dịch cho chính mình')
       }
 
-      // Validate lịch xe nếu là giao lịch và có hiển thị form lịch xe chi tiết
+      // Validate lịch xe nếu là giao lịch
       if (formData.id_loai_giao_dich === 1 && showScheduleForm) {
         console.log('Validating vehicle schedule data...')
         if (!scheduleData.id_loai_xe) {
@@ -314,32 +308,22 @@ const AddNewTransaction = () => {
 
       let scheduleId = null
 
-      // Tạo lịch xe trước nếu là giao dịch Giao lịch (luôn tạo, chỉ khác dữ liệu)
+      // Tạo lịch xe trước nếu là giao dịch Giao lịch
       if (formData.id_loai_giao_dich === 1) {
         console.log('=== TẠO LỊCH XE ===')
         
         const token = localStorage.getItem('authToken')
-        
-        // Chuẩn bị dữ liệu lịch xe
-        let schedulePayload = {
+        const scheduleResponse = await vehicleScheduleService.createSchedule(token, {
+          id_loai_xe: scheduleData.id_loai_xe || null,
+          id_loai_tuyen: scheduleData.id_loai_tuyen || null,
+          thoi_gian_bat_dau_don: scheduleData.thoi_gian_bat_dau_don || null,
+          thoi_gian_ket_thuc_don: scheduleData.thoi_gian_ket_thuc_don || null,
+          thoi_gian_bat_dau_tra: scheduleData.thoi_gian_bat_dau_tra || null,
+          thoi_gian_ket_thuc_tra: scheduleData.thoi_gian_ket_thuc_tra || null,
           id_nguoi_tao: user.id_nguoi_dung,
           id_nhom: parseInt(formData.id_nhom),
           id_nguoi_nhan: parseInt(formData.id_nguoi_nhan)
-        }
-        
-        if (showScheduleForm) {
-          // Có dữ liệu chi tiết - sử dụng dữ liệu từ form
-          schedulePayload = {
-            ...schedulePayload,
-            ...scheduleData
-          }
-          console.log('Tạo lịch xe với dữ liệu chi tiết:', schedulePayload)
-        } else {
-          // Không có dữ liệu chi tiết - tất cả các trường khác sẽ NULL
-          console.log('Tạo lịch xe với dữ liệu NULL (chỉ có id_nguoi_tao, id_nhom, id_nguoi_nhan):', schedulePayload)
-        }
-        
-        const scheduleResponse = await vehicleScheduleService.createSchedule(token, schedulePayload)
+        })
 
         if (scheduleResponse.success) {
           scheduleId = scheduleResponse.data.id
@@ -395,6 +379,7 @@ const AddNewTransaction = () => {
           thoi_gian_bat_dau_tra: '',
           thoi_gian_ket_thuc_tra: ''
         })
+        setShowScheduleForm(false)
         setGroupMembers([])
         
         // Reset point calculation state
@@ -439,7 +424,8 @@ const AddNewTransaction = () => {
       thoi_gian_bat_dau_tra: '',
       thoi_gian_ket_thuc_tra: ''
     })
-            setGroupMembers([])
+    setShowScheduleForm(false)
+    setGroupMembers([])
         
         // Reset point calculation state
         setPointCalculation({
@@ -791,74 +777,60 @@ const AddNewTransaction = () => {
                     <button
                       type="button"
                       onClick={() => setShowScheduleForm(!showScheduleForm)}
-                      className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-                        showScheduleForm 
-                          ? 'bg-red-100 text-red-600 hover:bg-red-200' 
-                          : 'bg-blue-100 text-blue-600 hover:bg-blue-200'
-                      }`}
+                      className="flex items-center space-x-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm"
                     >
-                      {showScheduleForm ? 'Ẩn chi tiết' : 'Tạo lịch xe chi tiết'}
+                      <CarOutlined className="text-sm" />
+                      <span>{showScheduleForm ? 'Ẩn chi tiết' : 'Tạo lịch xe chi tiết'}</span>
                     </button>
                   </div>
                   
-                  {!showScheduleForm && (
-                    <div className="text-center py-4 text-gray-500">
-                      <CarOutlined className="text-2xl mb-2" />
-                      <p>Lịch xe sẽ được tạo với dữ liệu cơ bản</p>
-                      <p className="text-xs mt-1">Nhấn "Tạo lịch xe chi tiết" để thêm thông tin chi tiết (loại xe, tuyến, thời gian)</p>
-                    </div>
-                  )}
-                  
-                  {showScheduleForm && (
-                    <div>
-                  
                   {/* Debug info */}
                   
-                  <div className="grid grid-cols-2 gap-4">
-                    {/* Loại xe */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        <CarOutlined className="mr-2 text-gray-400" />
-                        Loại xe
-                      </label>
-                      <select
-                        value={scheduleData.id_loai_xe}
-                        onChange={(e) => handleScheduleChange('id_loai_xe', e.target.value)}
-                        className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white"
-                        required
-                        disabled={loadingVehicleData}
-                      >
-                        <option value="">{loadingVehicleData ? 'Đang tải...' : 'Chọn loại xe'}</option>
-                        {vehicleTypes.map((type) => (
-                          <option key={type.id_loai_xe} value={type.id_loai_xe}>
-                            {type.ten_loai} ({type.so_cho} chỗ)
-                          </option>
-                        ))}
-                      </select>
-                    </div>
+                  {showScheduleForm && (
+                    <>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            <CarOutlined className="mr-2 text-gray-400" />
+                            Loại xe
+                          </label>
+                          <select
+                            value={scheduleData.id_loai_xe}
+                            onChange={(e) => handleScheduleChange('id_loai_xe', e.target.value)}
+                            className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white"
+                            required
+                            disabled={loadingVehicleData}
+                          >
+                            <option value="">{loadingVehicleData ? 'Đang tải...' : 'Chọn loại xe'}</option>
+                            {vehicleTypes.map((type) => (
+                              <option key={type.id_loai_xe} value={type.id_loai_xe}>
+                                {type.ten_loai} ({type.so_cho} chỗ)
+                              </option>
+                            ))}
+                          </select>
+                        </div>
 
-                    {/* Loại tuyến */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        <EnvironmentOutlined className="mr-2 text-gray-400" />
-                        Loại tuyến
-                      </label>
-                      <select
-                        value={scheduleData.id_loai_tuyen}
-                        onChange={(e) => handleScheduleChange('id_loai_tuyen', e.target.value)}
-                        className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white"
-                        required
-                        disabled={loadingVehicleData}
-                      >
-                        <option value="">{loadingVehicleData ? 'Đang tải...' : 'Chọn loại tuyến'}</option>
-                        {routeTypes.map((type) => (
-                          <option key={type.id_loai_tuyen} value={type.id_loai_tuyen}>
-                            {type.ten_loai} {type.la_khu_hoi ? '(Khứ hồi)' : '(Một chiều)'}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            <EnvironmentOutlined className="mr-2 text-gray-400" />
+                            Loại tuyến
+                          </label>
+                          <select
+                            value={scheduleData.id_loai_tuyen}
+                            onChange={(e) => handleScheduleChange('id_loai_tuyen', e.target.value)}
+                            className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white"
+                            required
+                            disabled={loadingVehicleData}
+                          >
+                            <option value="">{loadingVehicleData ? 'Đang tải...' : 'Chọn loại tuyến'}</option>
+                            {routeTypes.map((type) => (
+                              <option key={type.id_loai_tuyen} value={type.id_loai_tuyen}>
+                                {type.ten_loai} {type.la_khu_hoi ? '(Khứ hồi)' : '(Một chiều)'}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
 
                   <div className="grid grid-cols-2 gap-4 mt-4">
                     {/* Thời gian đón */}
@@ -919,11 +891,9 @@ const AddNewTransaction = () => {
                       />
                     </div>
                   </div>
-                    </div>
+                    </>
                   )}
-                </div>
-              )}
-
+  
               {/* Content */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -963,14 +933,9 @@ const AddNewTransaction = () => {
                   />
                   <p className="text-xs text-gray-500 mt-1">
                     Số âm: người nhận trả tiền, Số dương: người nhận nhận tiền
-                    {formData.id_loai_giao_dich === 1 && showScheduleForm && (
+                    {formData.id_loai_giao_dich === 1 && (
                       <span className="block mt-1 text-blue-600">
                         💡 Điểm sẽ được tính tự động khi chọn đầy đủ thông tin lịch xe
-                      </span>
-                    )}
-                    {formData.id_loai_giao_dich === 1 && !showScheduleForm && (
-                      <span className="block mt-1 text-gray-500">
-                        💡 Nhấn "Tạo lịch xe chi tiết" để tính điểm tự động, hoặc nhập điểm thủ công
                       </span>
                     )}
                   </p>
@@ -979,7 +944,7 @@ const AddNewTransaction = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     <CalendarOutlined className="mr-2 text-gray-400" />
                     Số điểm
-                    {formData.id_loai_giao_dich === 1 && showScheduleForm && (
+                    {formData.id_loai_giao_dich === 1 && (
                       <button
                         type="button"
                         onClick={handleManualPointCalculation}
@@ -1006,7 +971,7 @@ const AddNewTransaction = () => {
                   </p>
                   
                   {/* Point Calculation Status Display */}
-                  {formData.id_loai_giao_dich === 1 && showScheduleForm && pointCalculation.calculationStatus !== 'idle' && (
+                  {formData.id_loai_giao_dich === 1 && pointCalculation.calculationStatus !== 'idle' && (
                     <div className="mt-2 p-2 rounded-lg text-xs">
                       {pointCalculation.calculationStatus === 'calculating' && (
                         <div className="bg-blue-50 text-blue-600 flex items-center">
