@@ -133,7 +133,7 @@ class RealTimeService {
     // Polling cho notifications
     this.startPolling('notifications', async () => {
       try {
-        const response = await fetch(`${API_BASE_URL}/notifications`, {
+        const response = await fetch('http://localhost:5000/api/notifications', {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'

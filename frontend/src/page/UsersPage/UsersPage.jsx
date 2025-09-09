@@ -41,7 +41,7 @@ const UsersPage = () => {
   })
   const [transactionType, setTransactionType] = useState('all')
   const [scheduleStatus, setScheduleStatus] = useState('all')
-  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
+
   // State cho API
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)

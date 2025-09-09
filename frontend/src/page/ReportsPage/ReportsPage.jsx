@@ -26,13 +26,13 @@ const ReportsPage = () => {
   const [showContextMenu, setShowContextMenu] = useState(false)
   const [contextMenuPosition, setContextMenuPosition] = useState({ x: 0, y: 0 })
   const [selectedContextItem, setSelectedContextItem] = useState(null)
-  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
+  
   // State cho API
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [reports, setReports] = useState([])
   const [reportFolders, setReportFolders] = useState([])
-
+  
   const recentFiles = [
     {
       id: 1,

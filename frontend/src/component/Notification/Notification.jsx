@@ -22,7 +22,7 @@ const Notification = () => {
   const [loading, setLoading] = useState(false)
   const [processingId, setProcessingId] = useState(null)
   const [markingAllAsRead, setMarkingAllAsRead] = useState(false)
-  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
+
   // Không cần loadNotifications nữa vì dữ liệu sẽ được cập nhật tự động từ global state
   // Chỉ set loading false sau khi component mount
   useEffect(() => {

@@ -18,7 +18,7 @@ const GroupsPage = () => {
   const [selectedGroup, setSelectedGroup] = useState(null)
   const [selectedMember, setSelectedMember] = useState(null)
   const [activeTab, setActiveTab] = useState('transactions')
-  
+  const API_BASE_URL = process.env.REACT_APP_API_BASE_URL
   // State cho API
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -97,39 +97,24 @@ const GroupsPage = () => {
     try {
       const token = localStorage.getItem('authToken')
       
-      // Nếu không phải admin, thử lấy danh sách tất cả người dùng (có thể bị từ chối)
-      if (!isUserAdmin) {
-        try {
-          const response = await fetch(`${API_BASE_URL}/users`, {
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json',
-            }
-          })
-          
-          if (response.ok) {
-            const data = await response.json()
-            if (data.success) {
-              setAvailableUsers(data.data.users || [])
-              return
-            }
-          }
-        } catch (error) {
-          console.log('Không thể lấy danh sách tất cả người dùng, sử dụng danh sách nhóm hiện tại')
+      // Thử lấy danh sách người dùng cơ bản trước (cho tất cả user)
+      let response = await fetch('http://localhost:5000/api/users/basic-list', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
         }
-        
-        // Fallback: sử dụng danh sách từ nhóm hiện tại
-        if (selectedGroup) {
-          const currentGroupMembers = groupMembers[selectedGroup.id_nhom] || []
-          setAvailableUsers(currentGroupMembers)
-        } else {
-          setAvailableUsers([])
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success) {
+          setAvailableUsers(data.data.users || [])
+          return
         }
-        return
       }
       
-      // Nếu là admin, lấy danh sách tất cả người dùng
-      const response = await fetch(`${API_BASE_URL}/users`, {
+      // Nếu không được, thử lấy danh sách đầy đủ (chỉ admin)
+      response = await fetch('http://localhost:5000/api/users', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -274,7 +259,7 @@ const GroupsPage = () => {
     setLoading(true)
     try {
       const token = localStorage.getItem('authToken')
-      const response = await fetch(`${API_BASE_URL}/groups/${groupId}`, {
+      const response = await fetch(`http://localhost:5000/api/groups/${groupId}/delete`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
